@@ -1,0 +1,139 @@
+#: Cloud Monitoring: Qwik Start
+
+Cloud Monitoring provides visibility into the performance, uptime, and overall health of cloud-powered applications. Cloud monitoring
+collects metrics, events, and metadata from Google Cloud, Amazon Web Services, hosted uptime probes, application instrumentation, and a 
+variety of common application components including Cassandra, Nginx, Apache Web Server, Elasticsearch, and many others. Cloud monitoring 
+ingests that data and generates insights via dashboards, charts, and alerts. Cloud monitoring alerting helps you collaborate by integrating 
+with Slack, PagerDuty, HipChat, Campfire, and more.
+
+Install the Monitoring and Logging agents
+
+Agents collect data and then send or stream info to Cloud Monitoring in the Console.
+
+The Cloud Monitoring agent is a "collectd-based" daemon that gathers system and application metrics from virtual machine instances and sends them to Monitoring. By default, the Monitoring agent collects disk, CPU, network, and process metrics. Configuring the Monitoring agent allows third-party applications to get the full list of agent metrics. Learn more.
+
+The Cloud Logging agent streams logs from your VM instances and from selected third-party software packages to Cloud Logging. It is a best practice to run the Cloud Logging agent on all your VM instances. Learn more.
+
+
+#: monitoring agent install
+curl -sSO https://dl.google.com/cloudagents/install-monitoring-agent.sh
+sudo bash install-monitoring-agent.sh
+
+root@lamp-1-vm:~# curl -sSO https://dl.google.com/cloudagents/install-monitoring-agent.sh
+root@lamp-1-vm:~# ls -lh
+total 12K
+-rw-r--r-- 1 root root 8.3K May 18 08:28 install-monitoring-agent.sh
+root@lamp-1-vm:~# bash install-monitoring-agent.sh 
+==============================================================================
+Starting installation of stackdriver-agent
+==============================================================================
+
+Installing agent for Debian or Ubuntu.
+OK
+Ign:1 http://deb.debian.org/debian stretch InRelease
+Hit:2 http://security.debian.org stretch/updates InRelease
+Get:3 http://deb.debian.org/debian stretch-updates InRelease [91.0 kB]   
+Get:4 http://deb.debian.org/debian stretch-backports InRelease [91.8 kB]             
+Hit:5 http://deb.debian.org/debian stretch Release                                   
+Get:6 http://packages.cloud.google.com/apt google-cloud-monitoring-stretch InRelease [3,806 B]
+Hit:7 http://packages.cloud.google.com/apt cloud-sdk-stretch InRelease
+Hit:8 http://packages.cloud.google.com/apt google-compute-engine-stretch-stable InRelease
+Hit:9 http://packages.cloud.google.com/apt google-cloud-packages-archive-keyring-stretch InRelease
+Get:11 http://packages.cloud.google.com/apt google-cloud-monitoring-stretch/main amd64 Packages [2,337 B]
+Fetched 189 kB in 0s (254 kB/s)                      
+Reading package lists... Done
+Reading package lists... Done
+Building dependency tree       
+Reading state information... Done
+The following additional packages will be installed:
+  libltdl7 libpython2.7 libyajl2
+Suggested packages:
+  default-jre libhiredis0.13 libmariadbclient18 libpq5
+The following NEW packages will be installed:
+  libltdl7 libpython2.7 libyajl2 stackdriver-agent
+0 upgraded, 4 newly installed, 0 to remove and 8 not upgraded.
+Need to get 3,235 kB of archives.
+After this operation, 9,982 kB of additional disk space will be used.
+Get:1 http://packages.cloud.google.com/apt google-cloud-monitoring-stretch/main amd64 stackdriver-agent amd64 5.5.2-1002.stretch [1,751 kB]
+Get:2 http://deb.debian.org/debian stretch/main amd64 libltdl7 amd64 2.4.6-2 [389 kB]
+Get:3 http://deb.debian.org/debian stretch/main amd64 libpython2.7 amd64 2.7.13-2+deb9u3 [1,071 kB]
+Get:4 http://deb.debian.org/debian stretch/main amd64 libyajl2 amd64 2.1.0-2+b3 [23.2 kB]
+Fetched 3,235 kB in 0s (18.7 MB/s)  
+Selecting previously unselected package libltdl7:amd64.
+(Reading database ... 41138 files and directories currently installed.)
+Preparing to unpack .../libltdl7_2.4.6-2_amd64.deb ...
+Unpacking libltdl7:amd64 (2.4.6-2) ...
+Selecting previously unselected package libpython2.7:amd64.
+Preparing to unpack .../libpython2.7_2.7.13-2+deb9u3_amd64.deb ...
+Unpacking libpython2.7:amd64 (2.7.13-2+deb9u3) ...
+Selecting previously unselected package libyajl2:amd64.
+Preparing to unpack .../libyajl2_2.1.0-2+b3_amd64.deb ...
+Unpacking libyajl2:amd64 (2.1.0-2+b3) ...
+Selecting previously unselected package stackdriver-agent.
+Preparing to unpack .../stackdriver-agent_5.5.2-1002.stretch_amd64.deb ...
+Unpacking stackdriver-agent (5.5.2-1002.stretch) ...
+Setting up libyajl2:amd64 (2.1.0-2+b3) ...
+Processing triggers for libc-bin (2.24-11+deb9u4) ...
+
+#: monitoring logging install
+curl -sSO https://dl.google.com/cloudagents/install-logging-agent.sh
+sudo bash install-logging-agent.sh
+
+root@lamp-1-vm:~# bash install-logging-agent.sh 
+==============================================================================
+Starting installation of google-fluentd
+==============================================================================
+
+Installing agent for Debian or Ubuntu.
+OK
+Get:1 http://packages.cloud.google.com/apt google-cloud-logging-stretch InRelease [3,806 B]
+Get:2 http://packages.cloud.google.com/apt google-cloud-logging-stretch/main amd64 Packages [2,631 B]
+Fetched 6,437 B in 0s (28.5 kB/s)    
+Reading package lists... Done
+Reading package lists... Done
+Building dependency tree       
+Reading state information... Done
+The following NEW packages will be installed:
+  google-fluentd google-fluentd-catch-all-config
+0 upgraded, 2 newly installed, 0 to remove and 8 not upgraded.
+Need to get 83.6 MB of archives.
+After this operation, 318 MB of additional disk space will be used.
+Get:1 http://packages.cloud.google.com/apt google-cloud-logging-stretch/main amd64 google-fluentd amd64 1.6.34-1 [83.6 MB]
+Get:2 http://packages.cloud.google.com/apt google-cloud-logging-stretch/main amd64 google-fluentd-catch-all-config all 0.7 [5,740 B]
+Fetched 83.6 MB in 2s (41.3 MB/s)                          
+Selecting previously unselected package google-fluentd.
+(Reading database ... 41571 files and directories currently installed.)
+Preparing to unpack .../google-fluentd_1.6.34-1_amd64.deb ...
+Unpacking google-fluentd (1.6.34-1) ...
+Selecting previously unselected package google-fluentd-catch-all-config.
+Preparing to unpack .../google-fluentd-catch-all-config_0.7_all.deb ...
+Unpacking google-fluentd-catch-all-config (0.7) ...
+Setting up google-fluentd (1.6.34-1) ...
+Adding system user `google-fluentd' (UID 108) ...
+Adding new group `google-fluentd' (GID 113) ...
+Adding new user `google-fluentd' (UID 108) with group `google-fluentd' ...
+Not creating home directory `/home/google-fluentd'.
+Installing default conffile /etc/google-fluentd/google-fluentd.conf ...
+Setting up google-fluentd-catch-all-config (0.7) ...
+grep: /var/log/google-fluentd/google-fluentd.log: No such file or directory
+
+==============================================================================
+Installation of google-fluentd complete.
+
+Logs from this machine should be visible in the log viewer at:
+  (failed to obtain logs viewer URL from agent log)
+
+A test message has been sent to syslog to help verify proper operation.
+
+Please consult the documentation for troubleshooting advice:
+  https://cloud.google.com/logging/docs/agent
+
+You can monitor the logging agent's logfile at:
+  /var/log/google-fluentd/google-fluentd.log
+==============================================================================
+
+Uptime checks verify that a resource is always accessible. For practice, create an uptime check to verify your VM is up.
+Use Cloud monitoring to create one or more alerting policies.
+
+
+

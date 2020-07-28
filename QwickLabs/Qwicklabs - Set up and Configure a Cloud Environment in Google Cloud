@@ -1,0 +1,98 @@
+#: Set up and Configure a Cloud Environment in Google Cloud: Challenge Lab
+#: https://google.qwiklabs.com/focuses/10603?parent=catalog
+
+Topics tested:
+
+Creating and using VPCs and subnets
+Configuring and launching a Deployment Manager configuration
+Creating a Kubernetes cluster
+Configuring and launching a Kubernetes deployment and service
+Setting up stackdriver monitoring
+Configuring an IAM role for an account
+
+You need to complete the following tasks:
+
+Create a development VPC with three subnets manually
+Create a production VPC with three subnets using a provided Deployment Manager configuration
+Create a bastion that is connected to both VPCs
+Create a development Cloud SQL Instance and connect and prepare the WordPress environment
+Create a Kubernetes cluster in the development VPC for WordPress
+Prepare the Kubernetes cluster for the WordPress environment
+Create a WordPress deployment using the supplied configuration
+Enable monitoring of the cluster via stackdriver
+Provide access for an additional engineer
+
+Some Jooli Inc. standards you should follow:
+
+Create all resources in the us-east1 region and us-east1-b zone, unless otherwise directed.
+
+Use the project VPCs.
+
+Naming is normally team-resource, e.g. an instance could be named kraken-webserver1.
+
+Allocate cost effective resource sizes. Projects are monitored and excessive resource use will result in the containing project's termination (and possibly yours), so beware. This is the guidance the monitoring team is willing to share: unless directed, use n1-standard-1.
+
+---
+#: set region and zone
+gcloud config set compute/region us-east1
+gcloud config set compute/zone us-east1-b
+
+#: create vpc griffin-dev-vpc
+gcloud compute networks create griffin-dev-vpc --subnet-mode=custom
+
+#: create a subnet griffin-dev-wp on vpc griffin-dev-vpc
+gcloud compute networks subnets create griffin-dev-wp --network=griffin-dev-vpc --range=192.168.16.0/20
+gcloud compute networks subnets create griffin-dev-mgmt --network=griffin-dev-vpc --range=192.168.32.0/20
+
+#: create production VPC using Deployment Manager
+
+#: copy all files from this bucket
+gsutil gs://cloud-training/gsp321/dm 
+
+#: run the deplyment manager to create production VPC
+gcloud deployment-manager deployments create advanced-configuration --config <file>.yaml
+
+#: create bastion host with two network interfaces, one connected to griffin-dev-mgmt and the 
+#: other connected to griffin-prod-mgmt. Make sure you can SSH to the host.
+#: https://cloud.google.com/vpc/docs/create-use-multiple-interfaces#example
+gcloud compute instances create kraken-bastion1 --machine-type=n1-standard-1 \
+    --network-interface subnet=griffin-dev-wp \
+    --network-interface subnet=griffin-dev-mgmt
+
+#: create and configure Cloud SQL Instance
+gcloud sql instances create griffin-dev-db --enable-bin-log --root-password=12345678 
+gcloud sql connect <instance>
+-- create users
+CREATE DATABASE wordpress;
+GRANT ALL PRIVILEGES ON wordpress.* TO "wp_user"@"%" IDENTIFIED BY "stormwind_rules";
+FLUSH PRIVILEGES;
+
+#: create a kubernetes cluster
+
+#: creating the backend Kubernetes cluster
+gcloud container clusters create griffin-dev \
+          --num-nodes 2 \
+          --network griffin-dev-wp \
+          --region us-east1
+          --zone us-east1-b
+
+#: getting credentials
+#: https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl
+gcloud container clusters get-credentials griffin-dev \
+          --region us-east1
+          --zone us-east1-b
+
+#: adding an docker image to be deployed
+kubectl create deployment hello-server \
+          --image=gcr.io/google-samples/hello-app:2.0
+
+#: exposing the deployment
+kubectl expose deployment hello-server \
+          --type=LoadBalancer \
+          --port 8080
+
+#: getting exposed running services
+kubectl get service
+
+#: prepare the kubernetes cluster (step 6)
+

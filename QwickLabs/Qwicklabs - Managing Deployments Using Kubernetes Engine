@@ -1,0 +1,705 @@
+#: Managing Deployments Using Kubernetes Engine
+
+Dev Ops practices will regularly make use of multiple deployments to manage application deployment scenarios such as "Continuous Deployment", "Blue-Green Deployments," "Canary Deployments" and more. This lab is to provide practice in scaling and managing containers so you can accomplish these common scenarios where multiple heterogeneous deployments are being used.
+
+Prior to take this lab you should take the below ones:
+
+- Introduction to Docker, https://google.qwiklabs.com/focuses/1029?parent=catalog
+
+#: push an docker image to registry
+hostname   = gcr.io
+project-id = your project's id
+image      = your image name
+tag        = any string tag of your choice. If unspecified, it defaults to "latest".
+
+#: tag it 0.2
+docker tag node-app:0.2 gcr.io/$(gcloud config get-value project)/node-app:0.2
+
+#: show images
+student_02_b18f81380097@cloudshell:~/test (qwiklabs-gcp-02-098e990e985e)$ docker images
+REPOSITORY                                     TAG                 IMAGE ID            CREATED             SIZE
+gcr.io/qwiklabs-gcp-02-098e990e985e/node-app   0.2                 ca5dd0108553        4 minutes ago       884MB
+
+#: push it to gcr.io
+student_02_b18f81380097@cloudshell:~/test (qwiklabs-gcp-02-098e990e985e)$ docker push gcr.io/$(gcloud config get-value project)/node-app:0.2
+Your active configuration is: [cloudshell-28821]
+The push refers to repository [gcr.io/qwiklabs-gcp-02-098e990e985e/node-app]
+a165882d21fc: Pushed
+4a2756410bad: Pushed
+f39151891503: Pushed
+f1965d3c206f: Pushed
+a27518e43e49: Pushed
+910d7fd9e23e: Pushed
+4230ff7f2288: Pushed
+2c719774c1e1: Pushed
+ec62f19bb3aa: Pushed
+f94641f1fe1f: Pushed
+0.2: digest: sha256:62f5ca8508df749c7f422348fc52871412b9867ed2e54547c0d341d6f6ee5069 size: 2422
+
+#: remove all containers
+docker stop $(docker ps -q)
+docker rm $(docker ps -aq)
+
+#: deploy from the registry (gcr.io)
+student_02_b18f81380097@cloudshell:~/test (qwiklabs-gcp-02-098e990e985e)$ docker pull gcr.io/$(gcloud config get-value project)/node-app:0.2
+Your active configuration is: [cloudshell-28821]
+0.2: Pulling from qwiklabs-gcp-02-098e990e985e/node-app
+c5e155d5a1d1: Pull complete
+221d80d00ae9: Pull complete
+4250b3117dca: Pull complete
+3b7ca19181b2: Pull complete
+425d7b2a5bcc: Pull complete
+69df12c70287: Pull complete
+ea2f5386a42d: Pull complete
+d421d2b3c5eb: Pull complete
+5c0b3a8608c8: Pull complete
+8fb6c18f4c5e: Pull complete
+Digest: sha256:62f5ca8508df749c7f422348fc52871412b9867ed2e54547c0d341d6f6ee5069
+Status: Downloaded newer image for gcr.io/qwiklabs-gcp-02-098e990e985e/node-app:0.2
+gcr.io/qwiklabs-gcp-02-098e990e985e/node-app:0.2
+
+#: final test
+student_02_b18f81380097@cloudshell:~/test (qwiklabs-gcp-02-098e990e985e)$ docker run -p 4000:80 -d gcr.io/$(gcloud config get-value project)/node-app:0.2
+Your active configuration is: [cloudshell-28821]
+46840249daa9a40e56dcaa74c4065b3cd531383e7f001f4dd70dd8706d696e81
+
+student_02_b18f81380097@cloudshell:~/test (qwiklabs-gcp-02-098e990e985e)$ curl http://localhost:4000
+Hello Bianchi
+
+
+- Introduction to Kubernetes, https://google.qwiklabs.com/focuses/564?parent=catalog
+
+#: ilustration
+https://cdn.qwiklabs.com/ZB%2FLTu%2FfOBuu7svaY0%2Fier%2FSvbJdfF3Lrb%2F5woXeecI%3D
+
+#: create container
+docker build -t gcr.io/$(gcloud config get-value project)/hello-node:v1 .
+
+#: checking the built container running
+student_00_82836a6c2e36@cloudshell:~ (qwiklabs-gcp-00-bf359c000b0b)$ docker ps
+CONTAINER ID        IMAGE                                               COMMAND                  CREATED             STATUS              PORTS                    NAMES
+073f5bd76698        gcr.io/qwiklabs-gcp-00-bf359c000b0b/hello-node:v1   "/bin/sh -c 'node se…"   38 seconds ago      Up 37 seconds       0.0.0.0:8080->8080/tcp   jolly_cray
+
+#: before pushing it to your own registry, run the auth configure-docker
+student_00_82836a6c2e36@cloudshell:~ (qwiklabs-gcp-00-bf359c000b0b)$ gcloud auth configure-docker
+WARNING: Your config file at [/home/student_00_82836a6c2e36/.docker/config.json] contains these credential helper entries:
+{
+  "credHelpers": {
+    "gcr.io": "gcloud",
+    "us.gcr.io": "gcloud",
+    "eu.gcr.io": "gcloud",
+    "asia.gcr.io": "gcloud",
+    "staging-k8s.gcr.io": "gcloud",
+    "marketplace.gcr.io": "gcloud"
+  }
+}
+Adding credentials for all GCR repositories.
+WARNING: A long list of credential helpers may cause delays running 'docker build'. We recommend passing the registry name to configure only the registry you are using.
+gcloud credential helpers already registered correctly.
+
+#: push to registry
+student_00_82836a6c2e36@cloudshell:~ (qwiklabs-gcp-00-bf359c000b0b)$ docker push gcr.io/$(gcloud config get-value project)/hello-node:v1
+Your active configuration is: [cloudshell-1788]
+The push refers to repository [gcr.io/qwiklabs-gcp-00-bf359c000b0b/hello-node]
+bda43b72aa88: Pushed
+381c97ba7dc3: Pushed
+604c78617f34: Pushed
+fa18e5ffd316: Pushed
+0a5e2b2ddeaa: Pushed
+53c779688d06: Pushed
+60a0858edcd5: Pushed
+b6ca02dfe5e6: Pushed
+v1: digest: sha256:2953c93851f02d620aa9fc55aa072ddc94c1289bdbc080ec541ba9d4e6965406 size: 2002
+
+#: creating the cluster
+student_00_82836a6c2e36@cloudshell:~ (qwiklabs-gcp-00-bf359c000b0b)$ gcloud container clusters create hello-world \
+>                 --num-nodes 2 \
+>                 --machine-type n1-standard-1 \
+>                 --zone us-central1-a
+Creating cluster hello-world in us-central1-a... Cluster is being health-checked (master is healthy)...done.
+Created [https://container.googleapis.com/v1/projects/qwiklabs-gcp-00-bf359c000b0b/zones/us-central1-a/clusters/hello-world].
+To inspect the contents of your cluster, go to: https://console.cloud.google.com/kubernetes/workload_/gcloud/us-central1-a/hello-world?project=qwiklabs-gcp-00-bf359c000b0b
+kubeconfig entry generated for hello-world.
+NAME         LOCATION       MASTER_VERSION  MASTER_IP       MACHINE_TYPE   NODE_VERSION    NUM_NODES  STATUS
+hello-world  us-central1-a  1.14.10-gke.36  35.222.175.232  n1-standard-1  1.14.10-gke.36  2          RUNNING
+
+#: create a pod
+student_00_82836a6c2e36@cloudshell:~ (qwiklabs-gcp-00-bf359c000b0b)$ kubectl create deployment hello-node --image=gcr.io/$(gcloud config get-value project)/hello-node:v1
+Your active configuration is: [cloudshell-1788]
+deployment.apps/hello-node created
+
+student_00_82836a6c2e36@cloudshell:~ (qwiklabs-gcp-00-bf359c000b0b)$ kubectl get deployments
+NAME         READY   UP-TO-DATE   AVAILABLE   AGE
+hello-node   1/1     1            1           42s
+
+student_00_82836a6c2e36@cloudshell:~ (qwiklabs-gcp-00-bf359c000b0b)$ kubectl get pods
+NAME                          READY   STATUS    RESTARTS   AGE
+hello-node-79ccc554d5-fvpmq   1/1     Running   0          61s
+
+#: troubleshooting commands
+kubectl get deployments
+kubectl get pods
+kubectl cluster-info
+kubectl get view
+kubectl config view
+kubctl get events
+kubectl get events
+kubectl logs <pod-name>
+
+#: allow external traffic - "expose the deployment not the pod"
+student_00_82836a6c2e36@cloudshell:~ (qwiklabs-gcp-00-bf359c000b0b)$ kubectl expose deployment hello-node --type="LoadBalancer" --port=8080
+service/hello-node exposed
+
+student_00_82836a6c2e36@cloudshell:~ (qwiklabs-gcp-00-bf359c000b0b)$ kubectl get services
+NAME         TYPE           CLUSTER-IP      EXTERNAL-IP     PORT(S)          AGE
+hello-node   LoadBalancer   10.31.250.221   35.193.15.185   8080:32747/TCP   89s
+kubernetes   ClusterIP      10.31.240.1     <none>          443/TCP          8m15s
+
+#: There are 2 IP addresses listed for your hello-node service, both serving port 8080. The CLUSTER-IP 
+#: is the internal IP that is only visible inside your cloud virtual network; the EXTERNAL-IP is the 
+#: external load-balanced IP.
+
+#: scaling-up the service
+student_00_82836a6c2e36@cloudshell:~ (qwiklabs-gcp-00-bf359c000b0b)$ kubectl scale deployment hello-node --replicas=4
+deployment.extensions/hello-node scaled
+
+student_00_82836a6c2e36@cloudshell:~ (qwiklabs-gcp-00-bf359c000b0b)$ kubectl get deployment
+NAME         READY   UP-TO-DATE   AVAILABLE   AGE
+hello-node   4/4     4            4           7m48
+
+student_00_82836a6c2e36@cloudshell:~ (qwiklabs-gcp-00-bf359c000b0b)$ kubectl get pods
+NAME                          READY   STATUS    RESTARTS   AGE
+hello-node-79ccc554d5-fvpmq   1/1     Running   0          8m13s
+hello-node-79ccc554d5-hxnvw   1/1     Running   0          51s
+hello-node-79ccc554d5-s76ph   1/1     Running   0          51s
+hello-node-79ccc554d5-tmlj4   1/1     Running   0          51s
+
+#: rolling out upgrades
+student_00_82836a6c2e36@cloudshell:~ (qwiklabs-gcp-00-bf359c000b0b)$ vi server.js #: changed the app
+student_00_82836a6c2e36@cloudshell:~ (qwiklabs-gcp-00-bf359c000b0b)$ docker build -t gcr.io/$(gcloud config get-value project)/hello-node:v2 .
+Your active configuration is: [cloudshell-1788]
+Sending build context to Docker daemon  190.5kB
+Step 1/4 : FROM node:6.9.2
+ ---> faaadb4aaf9b
+Step 2/4 : EXPOSE 8080
+ ---> Using cache
+ ---> ee7c381fb786
+Step 3/4 : COPY server.js .
+ ---> 5260c2b99353
+Step 4/4 : CMD node server.js
+ ---> Running in d665f0ab7b34
+Removing intermediate container d665f0ab7b34
+ ---> 7b348d701281
+Successfully built 7b348d701281
+Successfully tagged gcr.io/qwiklabs-gcp-00-bf359c000b0b/hello-node:v2
+
+student_00_82836a6c2e36@cloudshell:~ (qwiklabs-gcp-00-bf359c000b0b)$ docker push gcr.io/$(gcloud config get-value project)/hello-node:v2
+Your active configuration is: [cloudshell-1788]
+The push refers to repository [gcr.io/qwiklabs-gcp-00-bf359c000b0b/hello-node]
+2549b91e5b81: Pushed
+381c97ba7dc3: Layer already exists
+604c78617f34: Layer already exists
+fa18e5ffd316: Layer already exists
+0a5e2b2ddeaa: Layer already exists
+53c779688d06: Layer already exists
+60a0858edcd5: Layer already exists
+b6ca02dfe5e6: Layer already exists
+v2: digest: sha256:f92f6026d13eb9465c223e66e61ee1519a0636b389ee087e76248374d64c0f5d size: 2002
+
+#: edit the deployment declarative file to the v2
+student_00_82836a6c2e36@cloudshell:~ (qwiklabs-gcp-00-bf359c000b0b)$ kubectl edit deployment hello-node
+deployment.extensions/hello-node edited
+
+#: New pods will be created with the new image and the old pods will be deleted.
+student_00_82836a6c2e36@cloudshell:~ (qwiklabs-gcp-00-bf359c000b0b)$ kubectl get deployments
+NAME         READY   UP-TO-DATE   AVAILABLE   AGE
+hello-node   3/4     4            3           14m
+student_00_82836a6c2e36@cloudshell:~ (qwiklabs-gcp-00-bf359c000b0b)$ kubectl get deployments
+NAME         READY   UP-TO-DATE   AVAILABLE   AGE
+hello-node   4/4     4            4           14m
+
+#: Final quiz
+
+Which of the following are features of the Kubernetes Engine?
+
+ - Integrated Logging and Monitoring
+ - Stateful Application Support
+ - Identity and Access Management
+
+ - Orchestrating the Cloud with Kubernetes, https://google.qwiklabs.com/focuses/557?parent=catalog
+
+ In this lab we will be working with the following Docker images:
+
+ - kelseyhightower/monolith - Monolith includes auth and hello services.
+ - kelseyhightower/auth - Auth microservice. Generates JWT tokens for authenticated users.
+ - kelseyhightower/hello - Hello microservice. Greets authenticated users.
+ - nginx - Frontend to the auth and hello services.
+
+#: set the zone yu want
+gcloud config set compute/zone us-central1-b
+
+#: create a cluster to play with
+gcloud container clusters create io
+
+#: check on below flags
+WARNING: Currently VPC-native is not the default mode during cluster creation. In the future, this will become the default mode and can be disabled using `--no-enable-ip-alias` flag. Use `--[no-]enable-ip-alias` flag to su
+ppress this warning.
+WARNING: Newly created clusters and node-pools will have node auto-upgrade enabled by default. This can be disabled using the `--no-enable-autoupgrade` flag.
+WARNING: Starting with version 1.18, clusters will have shielded GKE nodes by default.
+WARNING: Your Pod address range (`--cluster-ipv4-cidr`) can accommodate at most 1008 node(s).
+
+--no-enable-ip-alias:
+--no-enable-autoupgrade:
+--cluster-ipv4-cidr
+
+NAME  LOCATION       MASTER_VERSION  MASTER_IP     MACHINE_TYPE   NODE_VERSION    NUM_NODES  STATUS
+io    us-central1-b  1.14.10-gke.36  35.222.17.76  n1-standard-1  1.14.10-gke.36  3          RUNNING
+
+student_02_035196108e53@cloudshell:~ (qwiklabs-gcp-02-5df64b4e3399)$ git clone https://github.com/googlecodelabs/orchestrate-with-kubernetes.git
+Cloning into 'orchestrate-with-kubernetes'...
+remote: Enumerating objects: 90, done.
+remote: Total 90 (delta 0), reused 0 (delta 0), pack-reused 90
+Unpacking objects: 100% (90/90), done.
+
+student_02_035196108e53@cloudshell:~/orchestrate-with-kubernetes/kubernetes (qwiklabs-gcp-02-5df64b4e3399)$ ls -lh
+total 24K
+-rw-r--r-- 1 student_02_035196108e53 student_02_035196108e53  283 May 20 22:10 cleanup.sh
+drwxr-xr-x 2 student_02_035196108e53 student_02_035196108e53 4.0K May 20 22:10 deployments
+drwxr-xr-x 2 student_02_035196108e53 student_02_035196108e53 4.0K May 20 22:10 nginx
+drwxr-xr-x 2 student_02_035196108e53 student_02_035196108e53 4.0K May 20 22:10 pods
+drwxr-xr-x 2 student_02_035196108e53 student_02_035196108e53 4.0K May 20 22:10 services
+drwxr-xr-x 2 student_02_035196108e53 student_02_035196108e53 4.0K May 20 22:10 tls
+
+#: launch a nginx container
+kubectl create deployment nginx --image=nginx:1.10.0
+
+#: list pods
+kubectl get pods
+
+NAME                     READY   STATUS    RESTARTS   AGE
+nginx-574c99d7c8-brlgz   1/1     Running   0          13s
+
+#: expose the deployment - create a loadBalancer with a Public IP
+kubectl expose deployment nginx --port 80 --type LoadBalancer
+
+NAME         TYPE           CLUSTER-IP     EXTERNAL-IP    PORT(S)        AGE
+kubernetes   ClusterIP      10.7.240.1     <none>         443/TCP        8m44s
+nginx        LoadBalancer   10.7.242.207   35.238.98.71   80:32581/TCP   81s
+
+#: test the service
+curl http://35.238.98.71
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to nginx!</title>
+<style>
+    body {
+        width: 35em;
+        margin: 0 auto;
+        font-family: Tahoma, Verdana, Arial, sans-serif;
+    }
+</style>
+</head>
+<body>
+<h1>Welcome to nginx!</h1>
+<p>If you see this page, the nginx web server is successfully installed and
+working. Further configuration is required.</p>
+<p>For online documentation and support please refer to
+<a href="http://nginx.org/">nginx.org</a>.<br/>
+Commercial support is available at
+<a href="http://nginx.com/">nginx.com</a>.</p>
+<p><em>Thank you for using nginx.</em></p>
+</body>
+</html>
+
+#: pods
+apiVersion: v1
+kind: Pod
+metadata:
+  name: monolith
+  labels:
+    app: monolith
+spec:
+  containers:
+    - name: monolith
+      image: kelseyhightower/monolith:1.0.0
+      args:
+        - "-http=0.0.0.0:80"
+        - "-health=0.0.0.0:81"
+        - "-secret=secret"
+      ports:
+        - name: http
+          containerPort: 80
+        - name: health
+          containerPort: 81
+      resources:
+        limits:
+          cpu: 0.2
+          memory: "10Mi"
+
+#: create a pod based on the previous deployment definition
+kubectl create -f pods/monolith.yaml
+
+#: describe a pod
+kubectl pods describe
+Error: unknown command "pods" for "kubectl"
+
+Did you mean this?
+        logs
+
+Run 'kubectl --help' for usage.
+
+kubectl describe pods monolith
+
+Name:         monolith
+Namespace:    default
+Priority:     0
+Node:         gke-io-default-pool-7d531d90-n22c/10.128.0.3
+Start Time:   Wed, 20 May 2020 22:18:41 -0300
+Labels:       app=monolith
+Annotations:  <none>
+Status:       Running
+IP:           10.4.0.9
+IPs:          <none>
+Containers:
+  monolith:
+    Container ID:  docker://5d07331e09b07e45b0a538d980225ae58c3db6802ba8f1bb6290f7bf5e0181fb
+    Image:         kelseyhightower/monolith:1.0.0
+    Image ID:      docker-pullable://kelseyhightower/monolith@sha256:72c3f41b6b01c21d9fdd2f45a89c6e5d59b8299b52d7dd0c9491745e73db3a35
+    Ports:         80/TCP, 81/TCP
+    Host Ports:    0/TCP, 0/TCP
+    Args:
+      -http=0.0.0.0:80
+      -health=0.0.0.0:81
+      -secret=secret
+    State:          Running
+      Started:      Wed, 20 May 2020 22:18:44 -0300
+    Ready:          True
+    Restart Count:  0
+    Limits:
+      cpu:     200m
+      memory:  10Mi
+    Requests:
+      cpu:        200m
+      memory:     10Mi
+    Environment:  <none>
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from default-token-rzlzq (ro)
+Conditions:
+  Type              Status
+  Initialized       True
+  Ready             True
+  ContainersReady   True
+  PodScheduled      True
+Volumes:
+  default-token-rzlzq:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  default-token-rzlzq
+    Optional:    false
+QoS Class:       Guaranteed
+Node-Selectors:  <none>
+Tolerations:     node.kubernetes.io/not-ready:NoExecute for 300s
+                 node.kubernetes.io/unreachable:NoExecute for 300s
+Events:
+  Type    Reason     Age   From                                        Message
+  ----    ------     ----  ----                                        -------
+  Normal  Scheduled  118s  default-scheduler                           Successfully assigned default/monolith to gke-io-default-pool-7d531d90-n22c
+  Normal  Pulling    117s  kubelet, gke-io-default-pool-7d531d90-n22c  Pulling image "kelseyhightower/monolith:1.0.0"
+  Normal  Pulled     115s  kubelet, gke-io-default-pool-7d531d90-n22c  Successfully pulled image "kelseyhightower/monolith:1.0.0"
+  Normal  Created    115s  kubelet, gke-io-default-pool-7d531d90-n22c  Created container monolith
+  Normal  Started    115s  kubelet, gke-io-default-pool-7d531d90-n22c  Started container monolith
+
+By default, pods are allocated a private IP address and cannot be reached outside of the cluster. Use the kubectl port-forward command to map a local port to a port inside the monolith pod.
+
+kubectl logs monolith
+2020/05/21 01:18:44 Starting server...
+2020/05/21 01:18:44 Health service listening on 0.0.0.0:81
+2020/05/21 01:18:44 HTTP service listening on 0.0.0.0:80
+127.0.0.1:52910 - - [Thu, 21 May 2020 01:27:21 UTC] "GET / HTTP/1.1" curl/7.52.1
+127.0.0.1:52950 - - [Thu, 21 May 2020 01:27:46 UTC] "GET /secure HTTP/1.1" curl/7.52.1
+127.0.0.1:52992 - - [Thu, 21 May 2020 01:28:11 UTC] "GET /login HTTP/1.1" curl/7.52.1
+127.0.0.1:53044 - - [Thu, 21 May 2020 01:28:47 UTC] "GET /login HTTP/1.1" curl/7.52.1
+127.0.0.1:53062 - - [Thu, 21 May 2020 01:29:00 UTC] "GET /secure HTTP/1.1" curl/7.52.1
+
+kubectl logs -f monolith -> to get a stream of the logs happening in real-time
+
+Pods aren't meant to be persistent. They can be stopped or started for many reasons - like failed liveness or readiness checks - and this leads to a problem:
+
+What happens if you want to communicate with a set of Pods? When they get restarted they might have a different IP address. Services provide stable endpoints for Pods.
+
+Services use labels to determine what Pods they operate on. If Pods have the correct labels, they are automatically picked up and exposed by our services.
+
+The level of access a service provides to a set of pods depends on the Service's type. Currently there are three types:
+
+ClusterIP (internal) -- the default type means that this Service is only visible inside of the cluster,
+NodePort gives each node in the cluster an externally accessible IP and
+LoadBalancer adds a load balancer from the cloud provider which forwards traffic from the service to Nodes within it.
+
+cat pods/secure-monolith.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "secure-monolith"
+  labels:
+    app: monolith
+spec:
+  containers:
+    - name: nginx
+      image: "nginx:1.9.14"
+      lifecycle:
+        preStop:
+          exec:
+            command: ["/usr/sbin/nginx","-s","quit"]
+      volumeMounts:
+        - name: "nginx-proxy-conf"
+          mountPath: "/etc/nginx/conf.d"
+        - name: "tls-certs"
+          mountPath: "/etc/tls"
+    - name: monolith
+      image: "kelseyhightower/monolith:1.0.0"
+      ports:
+        - name: http
+          containerPort: 80
+        - name: health
+          containerPort: 81
+      resources:
+        limits:
+          cpu: 0.2
+          memory: "10Mi"
+      livenessProbe:
+        httpGet:
+          path: /healthz
+          port: 81
+          scheme: HTTP
+        initialDelaySeconds: 5
+        periodSeconds: 15
+        timeoutSeconds: 5
+      readinessProbe:
+        httpGet:
+          path: /readiness
+          port: 81
+          scheme: HTTP
+        initialDelaySeconds: 5
+        timeoutSeconds: 1
+  volumes:
+    - name: "tls-certs"
+      secret:
+        secretName: "tls-certs"
+    - name: "nginx-proxy-conf"
+      configMap:
+        name: "nginx-proxy-conf"
+        items:
+          - key: "proxy.conf"
+            path: "proxy.conf"
+
+kubectl create secret generic tls-certs --from-file tls/
+kubectl create configmap nginx-proxy-conf --from-file nginx/proxy.conf
+kubectl create -f pods/secure-monolith.yaml
+
+kubectl describe services monolith
+Name:                     monolith
+Namespace:                default
+Labels:                   <none>
+Annotations:              <none>
+Selector:                 app=monolith,secure=enabled
+Type:                     NodePort
+IP:                       10.7.240.118
+Port:                     <unset>  443/TCP
+TargetPort:               443/TCP
+NodePort:                 <unset>  31000/TCP
+Endpoints:                <none>
+Session Affinity:         None
+External Traffic Policy:  Cluster
+Events:                   <none>
+
+Why are you unable to get a response from the monolith service?
+How many endpoints does the monolith service have?
+What labels must a Pod have to be picked up by the monolith service?
+
+kubectl get services
+
+NAME         TYPE           CLUSTER-IP     EXTERNAL-IP    PORT(S)        AGE
+kubernetes   ClusterIP      10.7.240.1     <none>         443/TCP        40m
+nginx        LoadBalancer   10.7.242.207   35.238.98.71   80:32581/TCP   32m
+
+gcloud compute firewall-rules create allow-monolith-nodeport --allow=tcp:31000
+
+#: add label
+kubectl label pods secure-monolith 'secure=enabled'
+
+#: show labels
+kubectl get pods secure-monolith --show-labels
+NAME              READY   STATUS    RESTARTS   AGE     LABELS
+secure-monolith   2/2     Running   0          9m58s   app=monolith,secure=enabled
+
+kubectl describe services monolith | grep Endpoints
+Endpoints:                10.4.2.3:443
+
+########################################################################################################################
+
+#: Managing Deployments Using Kubernetes Engine
+
+Heterogeneous deployments typically involve connecting two or more distinct infrastructure environments or regions to address a specific technical or operational need. Heterogeneous deployments are called "hybrid", "multi-cloud", or "public-private", depending upon the specifics of the deployment. For the purposes of this lab, heterogeneous deployments include those that span regions within a single cloud environment, multiple public cloud environments (multi-cloud), or a combination of on-premises and public cloud environments (hybrid or public-private).
+
+Various business and technical challenges can arise in deployments that are limited to a single environment or region:
+
+Maxed out resources: In any single environment, particularly in on-premises environments, you might not have the compute, networking, and storage resources to meet your production needs.
+Limited geographic reach: Deployments in a single environment require people who are geographically distant from one another to access one deployment. Their traffic might travel around the world to a central location.
+Limited availability: Web-scale traffic patterns challenge applications to remain fault-tolerant and resilient.
+Vendor lock-in: Vendor-level platform and infrastructure abstractions can prevent you from porting applications.
+Inflexible resources: Your resources might be limited to a particular set of compute, storage, or networking offerings.
+Heterogeneous deployments can help address these challenges, but they must be architected using programmatic and deterministic processes and procedures. One-off or ad-hoc deployment procedures can cause deployments or processes to be brittle and intolerant of failures. Ad-hoc processes can lose data or drop traffic. Good deployment processes must be repeatable and use proven approaches for managing provisioning, configuration, and maintenance.
+
+Three common scenarios for heterogeneous deployment are multi-cloud deployments, fronting on-premises data, and continuous integration/continuous delivery (CI/CD) processes.
+
+
+#: set zone
+gcloud config set compute/zone us-central1-a
+
+#: git clone projects
+git clone https://github.com/googlecodelabs/orchestrate-with-kubernetes.git
+cd orchestrate-with-kubernetes/kubernetes
+
+#: create a cluster with five n1-standard-1 nodes
+gcloud container clusters create bootcamp --num-nodes 5 --scopes "https://www.googleapis.com/auth/projecthosting,storage-rw"
+
+#: The explain command in kubectl can tell us about the Deployment object.
+$ kubectl explain deployment
+KIND:     Deployment
+VERSION:  extensions/v1beta1
+DESCRIPTION:
+     DEPRECATED - This group version of Deployment is deprecated by
+     apps/v1beta2/Deployment. See the release notes for more information.
+     Deployment enables declarative updates for Pods and ReplicaSets.
+FIELDS:
+   apiVersion   <string>
+     APIVersion defines the versioned schema of this representation of an
+     object. Servers should convert recognized schemas to the latest internal
+     value, and may reject unrecognized values. More info:
+     https://git.k8s.io/community/contributors/devel/api-conventions.md#resources
+   kind <string>
+     Kind is a string value representing the REST resource this object
+     represents. Servers may infer this from the endpoint the client submits
+     requests to. Cannot be updated. In CamelCase. More info:
+     https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds
+   metadata     <Object>
+     Standard object metadata.
+   spec <Object>
+     Specification of the desired behavior of the Deployment.
+   status       <Object>
+     Most recently observed status of the Deployment.
+
+$ kubectl explain deployment.metadata.name
+KIND:     Deployment
+VERSION:  extensions/v1beta1
+FIELD:    name <string>
+DESCRIPTION:
+     Name must be unique within a namespace. Is required when creating
+     resources, although some resources may allow a client to request the
+     generation of an appropriate name automatically. Name is primarily intended
+     for creation idempotence and configuration definition. Cannot be updated.
+     More info: http://kubernetes.io/docs/user-guide/identifiers#names
+
+#: creating a deployment
+$ cat deployments/auth.yaml
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: auth
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: auth
+        track: stable
+    spec:
+      containers:
+        - name: auth
+          image: "kelseyhightower/auth:i.0.0"
+          ports:
+            - name: http
+              containerPort: 80
+            - name: health
+              containerPort: 81
+          resources:
+            limits:
+              cpu: 0.2
+              memory: "10Mi"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 81
+              scheme: HTTP
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /readiness
+              port: 81
+              scheme: HTTP
+            initialDelaySeconds: 5
+            timeoutSeconds: 1     
+
+#: create a deployment
+$ kubectl create -f deployments/auth.yaml
+deployment.extensions/auth created
+
+#: other commands
+$ kubectl describe pods auth-6bf565b6c8-959lz
+$ kubectl get deployments
+$ kubectl get pods
+$ kubectl get replicasets
+
+#: create a service for our auth deployment
+kubectl create -f services/auth.yaml
+kubectl create -f deployments/hello.yaml
+kubectl create -f services/hello.yaml
+kubectl create secret generic tls-certs --from-file tls/
+kubectl create configmap nginx-frontend-conf --from-file=nginx/frontend.conf
+kubectl create -f deployments/frontend.yaml
+kubectl create -f services/frontend.yaml
+
+Scale a deployment (up and down)
+
+kubectl explain deployment.spec.replicas
+kubectl scale deployment hello --replicas=5
+kubectl get pods | grep hello- | wc -l
+kubectl scale deployment hello --replicas=3
+
+Rolling Update
+
+$ kubectl edit deployment hello
+
+#: Once you save out of the editor, the updated Deployment will be saved to your cluster and 
+#: Kubernetes will begin a rolling update.
+
+$ kubectl get pods
+NAME                        READY   STATUS              RESTARTS   AGE
+auth-65965d94d6-cr2sp       1/1     Running             0          10m
+frontend-5dd6cbb4dd-5cxgx   1/1     Running             0          5m59s
+hello-56ff65f9bf-b5x6l      0/1     Terminating         0          6m58s
+hello-56ff65f9bf-dxfd5      1/1     Running             0          6m58s
+hello-5745d7776d-58gfh      0/1     ContainerCreating   0          1s
+hello-5745d7776d-tzdgb      1/1     Running             0          11s
+hello-5745d7776d-wjjhg      0/1     Running             0          11s
+
+$ kubectl rollout history deployment/hello
+deployment.extensions/hello
+REVISION  CHANGE-CAUSE
+1         <none>
+2         <none>
+
+#: pausing a rollout upgrade
+$ kubectl rollout pause deployment/hello
+deployment.extensions/hello paused
+
+#: resume a rollout
+$ kubectl rollout resume deployment/hello
+deployment.extensions/hello resumed
+
+#: rollback a deployment to the previous version
+$ kubectl rollout undo deployment/hello
+deployment.extensions/hello rolled back

@@ -1,0 +1,69 @@
+#: Connect to Cloud SQL from an Application in Kubernetes Engine
+
+gcloud config set compute/region us-central1
+gcloud config set compute/zone us-central1-a
+
+git clone https://github.com/GoogleCloudPlatform/gke-cloud-sql-postgres-demo.git
+
+cd gke-cloud-sql-postgres-demo
+
+--
+
+Deployment is fully automated. The script you will deploy takes the following parameters, in order:
+
+A username for your Cloud SQL instance
+A username for the pgAdmin console
+USER_PASSWORD - the password to login to the Postgres instance
+PG_ADMIN_CONSOLE_PASSWORD - the password to login to the pgAdmin UI
+
+You can create any username for the Cloud SQL instance and pgAdmin console; the example here uses "dbadmin" and "pgadmin".
+
+USER_PASSWORD=123456 PG_ADMIN_CONSOLE_PASSWORD=123456 ./create.sh bianchi bianchi
+
+Your active configuration is: [cloudshell-26450]
+Your active configuration is: [cloudshell-26450]
+Enabling sqladmin.googleapis.com
+Enabling container.googleapis.com
+Enabling iam.googleapis.com
+Cloud SQL instance creation started. This process takes a long time (5-10min).
+Waiting for instance to finish starting..
+Waiting for instance to finish starting..
+Waiting for instance to finish starting..
+...
+Waiting for instance to finish starting..
+state: RUNNABLE
+Creating Cloud SQL user...done.
+Created user [bianchi].
+Your active configuration is: [cloudshell-26450]
+Your active configuration is: [cloudshell-26450]
+Your active configuration is: [cloudshell-26450]
+Created service account [postgres-demo-sa].
+Created service account [postgres-demo-node-sa].
+Updated IAM policy for project [qwiklabs-gcp-04-5aef7b955700].
+Updated IAM policy for project [qwiklabs-gcp-04-5aef7b955700].
+Updated IAM policy for project [qwiklabs-gcp-04-5aef7b955700].
+Updated IAM policy for project [qwiklabs-gcp-04-5aef7b955700].
+created key [7576aa0c39adce4101875b46b8101414d6dc3c10] of type [json] as [credentials.json] for [postgres-demo-sa@qwiklabs-gcp-04-5aef7b955700.iam.gserviceaccount.com]
+Your active configuration is: [cloudshell-26450]
+Your active configuration is: [cloudshell-26450]
+Your active configuration is: [cloudshell-26450]
+Fetching server config for us-central1-a
+...
+This will enable the autorepair feature for nodes. Please see https://cloud.google.com/kubernetes-engine/docs/node-auto-repair for more information on node autorepairs.
+Creating cluster postgres-demo-cluster in us-central1-a... Cluster is being deployed...⠏  
+
+
+During the deployment, create.sh will run the following scripts:
+
+ - enable_apis.sh - enables the Kubernetes Engine API and Cloud SQL Admin API.
+ 
+ - postgres_instance.sh - creates the Cloud SQL instance and additional Postgres user. Note that gcloud will timeout when waiting for the creation of a Cloud SQL instance so the script manually polls for its completion instead.
+
+  - service_account.sh - creates the service account for the Cloud SQL Proxy container and creates the credentials file.
+
+  - cluster.sh - Creates the Kubernetes Engine cluster.
+
+  - configs_and_secrets.sh - creates the Kubernetes Engine secrets and configMap containing credentials and connection string for the Cloud SQL instance.
+
+  - pgadmin_deployment.sh - creates the pgAdmin4 pod.
+

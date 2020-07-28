@@ -1,0 +1,20 @@
+#: Deployment Manager - Full Production
+
+sudo apt-get update
+sudo apt-get install virtualenv; virtualenv -p python3 venv; source venv/bin/activate
+
+(venv) root@myvm:~/dmsamples/deploymentmanager-samples/examples/v2/nodejs/python# gcloud deployment-manager deployments create advanced-configuration --config nodejs.yaml
+The fingerprint of the deployment is YxdqLRTTmABNkVKj3GeGqw==
+Waiting for create [operation-1589793664384-5a5e8aea1be50-82c6ae77-eb4f203a]...done.                                                                                                        
+Create operation operation-1589793664384-5a5e8aea1be50-82c6ae77-eb4f203a completed successfully.
+NAME                                   TYPE                             STATE      ERRORS  INTENT
+advanced-configuration-application-fw  compute.v1.firewall              COMPLETED  []
+advanced-configuration-backend         compute.v1.instance              COMPLETED  []
+advanced-configuration-frontend-as     compute.v1.autoscaler            COMPLETED  []
+advanced-configuration-frontend-hc     compute.v1.httpHealthCheck       COMPLETED  []
+advanced-configuration-frontend-igm    compute.v1.instanceGroupManager  COMPLETED  []
+advanced-configuration-frontend-it     compute.v1.instanceTemplate      COMPLETED  []
+advanced-configuration-frontend-lb     compute.v1.forwardingRule        COMPLETED  []
+advanced-configuration-frontend-tp     compute.v1.targetPool            COMPLETED  []
+
+

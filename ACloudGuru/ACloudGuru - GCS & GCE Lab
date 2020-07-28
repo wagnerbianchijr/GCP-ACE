@@ -1,0 +1,150 @@
+#: create the new project
+gcloud projects create pimballeke-new-project005 --enable-cloud-apis
+
+#: current documentation does not mention what are the APIs enabled when crating a 
+#: new project with the --enable-cloud-apis flag. I opened a request for better docs: 
+#: https://issuetracker.google.com/issues/155496681
+
+#: enable the billing account for the created project
+#: list billing accounts
+gcloud alpha billing accounts list
+
+#: link the project and the billing acocunt (fix the "AccessDeniedException: 403 The project to be billed is associated with an absent billing account")
+gcloud alpha billing projects link pimballeke-new-project005 --billing-account 01A479-52439D-4E776D
+
+#: set the current session project's
+gcloud config set project pimballeke-new-project005
+
+#: set the default region and the default zone on the cloud shell
+gcloud config set compute/region us-west2
+gcloud config set compute/zone us-west2-b
+
+#: list enabled apis
+gcloud services list --enabled
+
+#: enable the compute.googleapis.com as we're going to create a VM
+gcloud services enable compute.googleapis.com
+
+#: list enabled apis - the below command will delay a little
+gcloud services list | grep -i compute
+
+#: list configurations
+gcloud config configurations list
+
+#: create the bucket
+gsutil mb gs://pimballeke-new-project005/
+
+#: create the instance with the userdata script, the metadata for the bucket and the scopes for monitoring, storage and logging
+gcloud compute instances create myvm01 --metadata lab-logs-bucket=gs://pimballeke-new-project005/ --metadata-from-file startup-script=script.sh --scopes storage-rw,monitoring-write,logging-write --machine-type f1-micro
+
+----
+
+pimballeke@cloudshell:~ (service-exploration-labs-20430)$ gcloud projects create pimballeke-new-project005 --enable-cloud-apis
+Create in progress for [https://cloudresourcemanager.googleapis.com/v1/projects/pimballeke-new-project005].
+Waiting for [operations/cp.7728513832723763415] to finish...done.
+Enabling service [cloudapis.googleapis.com] on project [pimballeke-new-project005]...
+Operation "operations/acf.f957208b-b8f7-41f9-bdd6-eeb3e65365f3" finished successfully.
+
+pimballeke@cloudshell:~ (service-exploration-labs-20430)$ gcloud alpha billing accounts list
+ACCOUNT_ID            NAME                  OPEN  MASTER_ACCOUNT_ID
+01A479-52439D-4E776D  Prod Billing Account  True
+
+pimballeke@cloudshell:~ (service-exploration-labs-20430)$ gcloud alpha billing projects link pimballeke-new-project005 --billing-account 01A479-52439D-4E776D
+billingAccountName: billingAccounts/01A479-52439D-4E776D
+billingEnabled: true
+name: projects/pimballeke-new-project005/billingInfo
+projectId: pimballeke-new-project005
+
+pimballeke@cloudshell:~ (service-exploration-labs-20430)$ gcloud config set project pimballeke-new-project005
+Updated property [core/project].
+
+pimballeke@cloudshell:~ (pimballeke-new-project005)$ gcloud config set compute/region us-west2
+Updated property [compute/region].
+
+pimballeke@cloudshell:~ (pimballeke-new-project005)$ gcloud config set compute/zone us-west2-b
+Updated property [compute/zone].
+
+pimballeke@cloudshell:~ (pimballeke-new-project005)$ gcloud services list --enabled
+NAME                              TITLE
+bigquery.googleapis.com           BigQuery API
+bigquerystorage.googleapis.com    BigQuery Storage API
+cloudapis.googleapis.com          Google Cloud APIs
+clouddebugger.googleapis.com      Cloud Debugger API
+cloudtrace.googleapis.com         Cloud Trace API
+datastore.googleapis.com          Cloud Datastore API
+logging.googleapis.com            Cloud Logging API
+monitoring.googleapis.com         Cloud Monitoring API
+servicemanagement.googleapis.com  Service Management API
+serviceusage.googleapis.com       Service Usage API
+sql-component.googleapis.com      Cloud SQL
+storage-api.googleapis.com        Google Cloud Storage JSON API
+storage-component.googleapis.com  Cloud Storage
+
+pimballeke@cloudshell:~ (pimballeke-new-project005)$ gcloud services enable compute.googleapis.com
+Operation "operations/acf.8667f8f9-7907-4da8-9410-70ab3d3a03fc" finished successfully.
+
+pimballeke@cloudshell:~ (pimballeke-new-project005)$ gcloud services list | grep -i compute
+compute.googleapis.com            Compute Engine API
+
+pimballeke@cloudshell:~ (pimballeke-new-project005)$ gcloud config configurations list
+NAME              IS_ACTIVE  ACCOUNT  PROJECT                    COMPUTE_DEFAULT_ZONE  COMPUTE_DEFAULT_REGION
+cloudshell-27144  True                pimballeke-new-project005  us-west2-b            us-west2
+
+pimballeke@cloudshell:~ (pimballeke-new-project005)$ gcloud config configurations list
+NAME              IS_ACTIVE  ACCOUNT  PROJECT                    COMPUTE_DEFAULT_ZONE  COMPUTE_DEFAULT_REGION
+cloudshell-27144  True                pimballeke-new-project005  us-west2-b            us-west2
+
+pimballeke@cloudshell:~ (pimballeke-new-project005)$ gsutil mb gs://pimballeke-new-project005/
+Creating gs://pimballeke-new-project005/...
+
+pimballeke@cloudshell:~ (pimballeke-new-project005)$ gcloud compute instances create myvm01 --metadata lab-logs-bucket=gs://pimballeke-new-project005/ --metadata-from-file startup-script=script.sh --scopes storage-rw,monitoring-write,logging-write --machine-type f1-micro
+Created [https://www.googleapis.com/compute/v1/projects/pimballeke-new-project005/zones/us-west2-b/instances/myvm01].
+NAME    ZONE        MACHINE_TYPE  PREEMPTIBLE  INTERNAL_IP  EXTERNAL_IP     STATUS
+myvm01  us-west2-b  f1-micro                   10.168.0.2   35.236.107.185  RUNNING
+
+pimballeke@cloudshell:~ (pimballeke-new-project005)$ gcloud compute ssh myvm01
+Updating project ssh metadata...⠧Updated [https://www.googleapis.com/compute/v1/projects/pimballeke-new-project005].
+Updating project ssh metadata...done.
+Waiting for SSH key to propagate.
+Warning: Permanently added 'compute.6007429741850517006' (ECDSA) to the list of known hosts.
+Linux myvm01 4.19.0-8-cloud-amd64 #1 SMP Debian 4.19.98-1 (2020-01-26) x86_64
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+
+pimballeke@myvm01:~$ hostname
+myvm01
+
+pimballeke@myvm01:~$ gsutil ls
+gs://pimballeke-new-project005/
+
+pimballeke@myvm01:~$ gsutil ls gs://pimballeke-new-project005/**
+gs://pimballeke-new-project005/machine-myvm01-finished.txt
+
+pimballeke@myvm01:~$ exit
+logout
+Connection to 35.236.107.185 closed.
+
+pimballeke@cloudshell:~ (pimballeke-new-project005)$ gsutil rm gs://pimballeke-new-project005/**
+Removing gs://pimballeke-new-project005/machine-myvm01-finished.txt...
+/ [1 objects]
+Operation completed over 1 objects.
+
+pimballeke@cloudshell:~ (pimballeke-new-project005)$ gsutil rb gs://pimballeke-new-project005
+Removing gs://pimballeke-new-project005/...
+
+pimballeke@cloudshell:~ (pimballeke-new-project005)$ gcloud compute instances delete myvm01
+The following instances will be deleted. Any attached disks configured
+ to be auto-deleted will be deleted unless they are attached to any
+other instances or the `--keep-disks` flag is given and specifies them
+ for keeping. Deleting a disk is irreversible and any data on the disk
+ will be lost.
+ - [myvm01] in [us-west2-b]
+
+Do you want to continue (Y/n)?  Y
+
+Deleted [https://www.googleapis.com/compute/v1/projects/pimballeke-new-project005/zones/us-west2-b/instances/myvm01].

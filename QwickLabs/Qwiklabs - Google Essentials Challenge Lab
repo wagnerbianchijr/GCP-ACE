@@ -1,0 +1,113 @@
+#: qwiklabs challenge
+
+#: set default region and zone
+gcloud config set compute/region us-east1
+gcloud config set compute/zone us-east1-b
+
+Task 1: Create a project jumphost instance
+
+- name the instance nucleus-jumphost
+- use the machine type of f1-micro
+- use the default image type (Debian Linux)
+
+#: create an instance
+gcloud compute instances create nucleus-jumphost --machine-type f1-micro
+
+Task 2: Create a Kubernetes service cluster
+
+- Create a cluster (in the us-east1 region) to host the service
+- Use the Docker container hello-app (`gcr.io/google-samples/hello-app:2.0`) as a place holder, the team will replace the container with their own work later
+- Expose the app on port 8080
+
+#: create a k8s cluster
+gcloud container clusters create my-cluster01 --zone us-east1-b --enable-shielded-nodes --no-enable-ip-alias --no-enable-autoupgrade --cluster-ipv4-cidr 10.0.0.0/16
+gcloud container clusters get-credentials my-cluster01 --zone us-east1-b
+kubectl create deployment hello-app --image=gcr.io/google-samples/hello-app:2.0
+kubectl expose deployment hello-app --type=LoadBalancer --port 8080
+kubectl get service
+
+Task 3: Setup an HTTP load balancer
+
+- Create an instance template
+- Create a target pool
+- Create a managed instance group
+- Create a firewall rule to allow traffic (80/tcp)
+- Create a health check
+- Create a backend service and attach the manged instance group
+- Create a URL map and target HTTP proxy to route requests to your URL map
+- Create a forwarding rule
+
+#: create the startup.sh script file:
+cat << EOF > startup.sh
+#! /bin/bash
+apt update
+apt install nginx -y
+systemctl start nginx
+sed -i -- 's/nginx/Google Cloud Platform - '"\$HOSTNAME"'/' /var/www/html/index.nginx-debian.html
+EOF
+
+#: creating the instance group
+gcloud compute instance-templates create nginx-template --metadata-from-file startup-script=startup.sh
+gcloud compute target-pools create nginx-pool
+gcloud compute instance-groups managed create nginx-group --base-instance-name nginx --size 2 --template nginx-template --target-pool nginx-pool
+gcloud compute firewall-rules create www-firewall --allow tcp:80
+gcloud compute instance-groups managed set-named-ports nginx-group --named-ports=nginx:80
+gcloud compute instances list
+
+#: firewall rules
+gcloud compute forwarding-rules create nginx-lb --region us-east1 --ports=80 --target-pool nginx-pool
+gcloud compute forwarding-rules list
+
+#: HTTP load balancers rely on HTTP health checks to ensure traffic is only routed to instances 
+#: where working copies of an application are running. Later in the lab, you test the health check 
+#: by deliberately failing the application on one of your instances by introducing a misconfiguration. 
+#: Type the following command to create an HTTP health check.
+gcloud compute http-health-checks create http-basic-check
+
+#: Type the following command to create a backend service and associate the HTTP health check from the 
+#: previous step with the new resource.
+gcloud compute backend-services create nginx-backend --protocol HTTP --http-health-checks http-basic-check --global
+
+#: Type the following command to add your first managed instance group, nginx-group, to the backend service you 
+#: created in the previous step.
+gcloud compute backend-services add-backend nginx-backend --instance-group nginx-group --instance-group-zone us-east1-b --global
+
+#: Next you create a URL map which is used to map HTTP request URLs to your backend service, nginx-backend. 
+#: Type the following command to create the URL map and associate it with your backend service.
+gcloud compute url-maps create web-map --default-service nginx-backend
+
+#: Check the console Networking > Load balancing.
+- Check for frontend
+- Check for the HTTP helth check
+- Check everything before executin the below commands 
+
+#: Type the following command to create a target HTTP proxy and associate it with your URL map
+gcloud compute target-http-proxies create http-lb-proxy --url-map web-map
+gcloud compute instance-groups managed set-named-ports nginx-group --named-ports http:80 
+gcloud compute backend-services update nginx-backend --port-name=nginx-group --global
+
+#: creating forwarding rule
+gcloud compute forwarding-rules create http-content-rule --global --target-http-proxy http-lb-proxy --ports 80
+gcloud compute forwarding-rules list
+
+#: check if it's healthy - this is the time of the thruth
+gcloud compute backend-services get-health nginx-backend --global
+
+---
+backend: https://www.googleapis.com/compute/v1/projects/qwiklabs-gcp-02-54991c4cbb8f/zones/us-east1-b/instanceGroups/nginx-group
+status:
+  healthStatus:
+  - healthState: HEALTHY
+    instance: https://www.googleapis.com/compute/v1/projects/qwiklabs-gcp-02-54991c4cbb8f/zones/us-east1-b/instances/nginx-kxx0
+    ipAddress: 10.142.0.6
+    port: 80
+  - healthState: HEALTHY
+    instance: https://www.googleapis.com/compute/v1/projects/qwiklabs-gcp-02-54991c4cbb8f/zones/us-east1-b/instances/nginx-dmfm
+    ipAddress: 10.142.0.7
+    port: 80
+  kind: compute#backendServiceGroupHealth
+
+"Please verify the web servers are serving on frontend of HHTP(s) Load Balancer"
+Please create the managed instance group with 2 nginx web-server
+
+

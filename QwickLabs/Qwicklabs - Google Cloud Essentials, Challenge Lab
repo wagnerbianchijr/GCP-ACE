@@ -1,0 +1,139 @@
+#: Google Cloud Essentials: Challenge Lab
+
+Task 1: Create a project jumphost instance
+
+#: create Jumphost in correct region/vpc, with valid 
+#: name/machine-type/scope and no external IP address 
+gcloud compute instances create nucleus-jumphost \
+          --network nucleus-vpc \
+          --zone us-east1-b  \
+          --machine-type f1-micro  \
+          --image-family debian-9  \
+          --image-project debian-cloud \
+          --scopes cloud-platform \
+          --no-address
+
+Task 2: Create a Kubernetes service cluster
+
+#: creating the backend Kubernetes cluster
+gcloud container clusters create nucleus-backend \
+          --num-nodes 1 \
+          --network nucleus-vpc \
+          --region us-east1
+
+#: getting credentials
+#: https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl
+gcloud container clusters get-credentials nucleus-backend \
+          --region us-east1
+
+#: adding an docker image to be deployed
+kubectl create deployment hello-server \
+          --image=gcr.io/google-samples/hello-app:2.0
+
+#: exposing the deployment
+kubectl expose deployment hello-server \
+          --type=LoadBalancer \
+          --port 8080
+
+#: getting exposed running services
+kubectl get service
+
+Task 3: Setup an HTTP load balancer
+
+- Create an instance template
+- Create a target pool
+- Create a managed instance group
+- Create a firewall rule to allow traffic (80/tcp)
+- Create a health check
+- Create a backend service and attach the manged instance group
+- Create a URL map and target HTTP proxy to route requests to your URL map
+- Create a forwarding rule
+
+#: creating the web server frontend
+cat << EOF > startup.sh
+#! /bin/bash
+apt-get update
+apt-get install -y nginx
+systemctl start nginx
+sed -i -- 's/nginx/Google Cloud Platform - '"\$HOSTNAME"'/' /var/www/html/index.nginx-debian.html
+EOF
+
+#: creating an instance template so we can create instances
+#: within the instance group using a pre-defined instance
+#: template. The is named "web-server-template"
+gcloud compute instance-templates create web-server-template \
+          --metadata-from-file startup-script=startup.sh \
+          --network nucleus-vpc \
+          --machine-type g1-small \
+          --region us-east1
+
+#: creating our managed instance group named web-server-group
+#: based on the instance templates created on the previous step
+gcloud compute instance-groups managed create web-server-group \
+          --base-instance-name web-server \
+          --size 2 \
+          --template web-server-template \
+          --region us-east1
+
+#: creating a firewall-rule named web-server-firewall
+#: for the VPC where we added our managed instance group
+gcloud compute firewall-rules create web-server-firewall \
+          --allow tcp:80 \
+          --network nucleus-vpc
+
+#: creating the basic health-check
+gcloud compute http-health-checks create http-basic-check
+
+#: creating a named-port service for all the instances
+#: avalable on the instance group - this information is
+#: used by HTTP LB service.
+gcloud compute instance-groups managed \
+          set-named-ports web-server-group \
+          --named-ports http:80 \
+          --region us-east1
+
+#: creating a backend service so it can receive traffic.
+#: https://cloud.google.com/sdk/gcloud/reference/compute/backend-services/create
+gcloud compute backend-services create web-server-backend \
+          --protocol HTTP \
+          --http-health-checks http-basic-check \
+          --global
+
+#: list created backend services and make sure the one we created
+#: is on the list.
+gcloud compute backend-services list
+
+#: add the backend service we created to the instance group, so it
+#: can receive trafic on the named port, being set soon
+gcloud compute backend-services add-backend web-server-backend \
+          --instance-group web-server-group \
+          --instance-group-region us-east1 \
+          --global
+
+#: Google Cloud HTTP(S) load balancers and Traffic Director use a URL map to direct 
+#: requests to a destination. When you configure an HTTP(S) load balancer or Traffic
+#: Director, you create a URL map. This URL map directs traffic to one or more of the 
+#: following destinations based on rules that you define:
+#: default backend service, non-default backend service
+#: default backend bucket, non-default backend bucket
+#: https://cloud.google.com/load-balancing/docs/url-map-concepts
+gcloud compute url-maps create web-server-map \
+           --default-service web-server-backend
+
+#: list all created url-maps
+gcloud compute url-maps list
+
+#: A target HTTPS proxy is referenced by one or more forwarding rules which specify the 
+#: network traffic that the proxy is responsible for routing. Let's create one so we can
+#: route traffic hitting the defined URL-map
+gcloud compute target-http-proxies create http-lb-proxy \
+          --url-map web-server-map
+
+#: creating a forwarding rule which routes trafic to the created target-http-proxy
+gcloud compute forwarding-rules create http-content-rule \
+        --global \
+        --target-http-proxy http-lb-proxy \
+        --ports 80
+
+#: listng forward rules
+gcloud compute forwarding-rules list
