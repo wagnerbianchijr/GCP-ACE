@@ -1,0 +1,6 @@
+#: migs
+
+gcloud beta compute --project=pimballeke-new-project005 instance-groups managed create my-managed-instance-group-01 --base-instance-name=my-managed-instance-group-01 --template=worker-instance-template --size=1 --description=my-managed-instance-group-01 --zones=us-central1-b,us-central1-c,us-central1-f,us-central1-a --instance-redistribution-type=PROACTIVE
+
+gcloud beta compute --project "pimballeke-new-project005" instance-groups managed set-autoscaling "my-managed-instance-group-01" --region "us-central1" --cool-down-period "30" --max-num-replicas "5" --min-num-replicas "1" --target-cpu-utilization "0.3" --mode "on"
+
