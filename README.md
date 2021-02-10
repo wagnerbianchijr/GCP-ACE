@@ -19,8 +19,9 @@ I hope it helps you to learn more.
 Profile with my achievements on Qwicklabs:
 https://www.qwiklabs.com/public_profiles/1bd3c4dd-4bbb-444b-9069-8375a1075f26
 
-![Google Cloud Essentials](https://cdn.qwiklabs.com/GHzcYBb00JYUF9Rgf3D9A4inwRHYnFtISMvcRlb%2FClU%3D)
-![Cloud Engineering Bedge](https://cdn.qwiklabs.com/YdG4ib4eNcilb2vUSYj4qIOPMzCTixyQAew7M0O9x1E%3D)
+**Current Qwicklabs Bedges**
 
+<img src="https://cdn.qwiklabs.com/YdG4ib4eNcilb2vUSYj4qIOPMzCTixyQAew7M0O9x1E%3D" width="100" height="100">
+<img src="https://cdn.qwiklabs.com/GHzcYBb00JYUF9Rgf3D9A4inwRHYnFtISMvcRlb%2FClU%3D" width="100" height="100">
 
 **More is yet to come...**
