@@ -28,4 +28,8 @@ https://www.qwiklabs.com/public_profiles/1bd3c4dd-4bbb-444b-9069-8375a1075f26
 <td><img src="https://cdn.qwiklabs.com/GHzcYBb00JYUF9Rgf3D9A4inwRHYnFtISMvcRlb%2FClU%3D" width="100" height="100"></td></tr>
 </table>
 
+**Current status with ACloudGuru**
+
+<img src="https://res.cloudinary.com/acloud-guru/image/fetch/w_920,q_auto,f_auto/https%3A%2F%2Facloudguru-quiz-completion-certificate-production.s3-accelerate.amazonaws.com%2F2A2F7BA29181.png" width="250" height="150">
+
 **More is yet to come...**
