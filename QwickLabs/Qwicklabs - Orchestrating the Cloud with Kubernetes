@@ -1,0 +1,307 @@
+ In this lab we will be working with the following Docker images:
+
+ - kelseyhightower/monolith - Monolith includes auth and hello services.
+ - kelseyhightower/auth - Auth microservice. Generates JWT tokens for authenticated users.
+ - kelseyhightower/hello - Hello microservice. Greets authenticated users.
+ - nginx - Frontend to the auth and hello services.
+
+#: set the zone you want
+gcloud config set compute/zone us-central1-b
+
+#: create a cluster to play with
+gcloud container clusters create io
+
+#: check on below flags
+WARNING: Currently VPC-native is not the default mode during cluster creation. In the future, this will become the default mode and can be disabled using `--no-enable-ip-alias` flag. Use `--[no-]enable-ip-alias` flag to su
+ppress this warning.
+WARNING: Newly created clusters and node-pools will have node auto-upgrade enabled by default. This can be disabled using the `--no-enable-autoupgrade` flag.
+WARNING: Starting with version 1.18, clusters will have shielded GKE nodes by default.
+WARNING: Your Pod address range (`--cluster-ipv4-cidr`) can accommodate at most 1008 node(s).
+
+--no-enable-ip-alias:
+--no-enable-autoupgrade:
+--cluster-ipv4-cidr
+
+NAME  LOCATION       MASTER_VERSION  MASTER_IP     MACHINE_TYPE   NODE_VERSION    NUM_NODES  STATUS
+io    us-central1-b  1.14.10-gke.36  35.222.17.76  n1-standard-1  1.14.10-gke.36  3          RUNNING
+
+student_02_035196108e53@cloudshell:~ (qwiklabs-gcp-02-5df64b4e3399)$ git clone https://github.com/googlecodelabs/orchestrate-with-kubernetes.git
+Cloning into 'orchestrate-with-kubernetes'...
+remote: Enumerating objects: 90, done.
+remote: Total 90 (delta 0), reused 0 (delta 0), pack-reused 90
+Unpacking objects: 100% (90/90), done.
+
+student_02_035196108e53@cloudshell:~/orchestrate-with-kubernetes/kubernetes (qwiklabs-gcp-02-5df64b4e3399)$ ls -lh
+total 24K
+-rw-r--r-- 1 student_02_035196108e53 student_02_035196108e53  283 May 20 22:10 cleanup.sh
+drwxr-xr-x 2 student_02_035196108e53 student_02_035196108e53 4.0K May 20 22:10 deployments
+drwxr-xr-x 2 student_02_035196108e53 student_02_035196108e53 4.0K May 20 22:10 nginx
+drwxr-xr-x 2 student_02_035196108e53 student_02_035196108e53 4.0K May 20 22:10 pods
+drwxr-xr-x 2 student_02_035196108e53 student_02_035196108e53 4.0K May 20 22:10 services
+drwxr-xr-x 2 student_02_035196108e53 student_02_035196108e53 4.0K May 20 22:10 tls
+
+#: launch a nginx container
+kubectl create deployment nginx --image=nginx:1.10.0
+
+#: list pods
+kubectl get pods
+
+NAME                     READY   STATUS    RESTARTS   AGE
+nginx-574c99d7c8-brlgz   1/1     Running   0          13s
+
+#: expose the deployment - create a loadBalancer with a Public IP
+kubectl expose deployment nginx --port 80 --type LoadBalancer
+
+NAME         TYPE           CLUSTER-IP     EXTERNAL-IP    PORT(S)        AGE
+kubernetes   ClusterIP      10.7.240.1     <none>         443/TCP        8m44s
+nginx        LoadBalancer   10.7.242.207   35.238.98.71   80:32581/TCP   81s
+
+#: test the service
+curl http://35.238.98.71
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to nginx!</title>
+<style>
+    body {
+        width: 35em;
+        margin: 0 auto;
+        font-family: Tahoma, Verdana, Arial, sans-serif;
+    }
+</style>
+</head>
+<body>
+<h1>Welcome to nginx!</h1>
+<p>If you see this page, the nginx web server is successfully installed and
+working. Further configuration is required.</p>
+<p>For online documentation and support please refer to
+<a href="http://nginx.org/">nginx.org</a>.<br/>
+Commercial support is available at
+<a href="http://nginx.com/">nginx.com</a>.</p>
+<p><em>Thank you for using nginx.</em></p>
+</body>
+</html>
+
+#: pods
+apiVersion: v1
+kind: Pod
+metadata:
+  name: monolith
+  labels:
+    app: monolith
+spec:
+  containers:
+    - name: monolith
+      image: kelseyhightower/monolith:1.0.0
+      args:
+        - "-http=0.0.0.0:80"
+        - "-health=0.0.0.0:81"
+        - "-secret=secret"
+      ports:
+        - name: http
+          containerPort: 80
+        - name: health
+          containerPort: 81
+      resources:
+        limits:
+          cpu: 0.2
+          memory: "10Mi"
+
+#: create a pod based on the previous deployment definition
+kubectl create -f pods/monolith.yaml
+
+#: describe a pod
+kubectl pods describe
+Error: unknown command "pods" for "kubectl"
+
+Did you mean this?
+        logs
+
+Run 'kubectl --help' for usage.
+
+kubectl describe pods monolith
+
+Name:         monolith
+Namespace:    default
+Priority:     0
+Node:         gke-io-default-pool-7d531d90-n22c/10.128.0.3
+Start Time:   Wed, 20 May 2020 22:18:41 -0300
+Labels:       app=monolith
+Annotations:  <none>
+Status:       Running
+IP:           10.4.0.9
+IPs:          <none>
+Containers:
+  monolith:
+    Container ID:  docker://5d07331e09b07e45b0a538d980225ae58c3db6802ba8f1bb6290f7bf5e0181fb
+    Image:         kelseyhightower/monolith:1.0.0
+    Image ID:      docker-pullable://kelseyhightower/monolith@sha256:72c3f41b6b01c21d9fdd2f45a89c6e5d59b8299b52d7dd0c9491745e73db3a35
+    Ports:         80/TCP, 81/TCP
+    Host Ports:    0/TCP, 0/TCP
+    Args:
+      -http=0.0.0.0:80
+      -health=0.0.0.0:81
+      -secret=secret
+    State:          Running
+      Started:      Wed, 20 May 2020 22:18:44 -0300
+    Ready:          True
+    Restart Count:  0
+    Limits:
+      cpu:     200m
+      memory:  10Mi
+    Requests:
+      cpu:        200m
+      memory:     10Mi
+    Environment:  <none>
+    Mounts:
+      /var/run/secrets/kubernetes.io/serviceaccount from default-token-rzlzq (ro)
+Conditions:
+  Type              Status
+  Initialized       True
+  Ready             True
+  ContainersReady   True
+  PodScheduled      True
+Volumes:
+  default-token-rzlzq:
+    Type:        Secret (a volume populated by a Secret)
+    SecretName:  default-token-rzlzq
+    Optional:    false
+QoS Class:       Guaranteed
+Node-Selectors:  <none>
+Tolerations:     node.kubernetes.io/not-ready:NoExecute for 300s
+                 node.kubernetes.io/unreachable:NoExecute for 300s
+Events:
+  Type    Reason     Age   From                                        Message
+  ----    ------     ----  ----                                        -------
+  Normal  Scheduled  118s  default-scheduler                           Successfully assigned default/monolith to gke-io-default-pool-7d531d90-n22c
+  Normal  Pulling    117s  kubelet, gke-io-default-pool-7d531d90-n22c  Pulling image "kelseyhightower/monolith:1.0.0"
+  Normal  Pulled     115s  kubelet, gke-io-default-pool-7d531d90-n22c  Successfully pulled image "kelseyhightower/monolith:1.0.0"
+  Normal  Created    115s  kubelet, gke-io-default-pool-7d531d90-n22c  Created container monolith
+  Normal  Started    115s  kubelet, gke-io-default-pool-7d531d90-n22c  Started container monolith
+
+By default, pods are allocated a private IP address and cannot be reached outside of the cluster. Use the kubectl port-forward command to map a local port to a port inside the monolith pod.
+
+kubectl logs monolith
+2020/05/21 01:18:44 Starting server...
+2020/05/21 01:18:44 Health service listening on 0.0.0.0:81
+2020/05/21 01:18:44 HTTP service listening on 0.0.0.0:80
+127.0.0.1:52910 - - [Thu, 21 May 2020 01:27:21 UTC] "GET / HTTP/1.1" curl/7.52.1
+127.0.0.1:52950 - - [Thu, 21 May 2020 01:27:46 UTC] "GET /secure HTTP/1.1" curl/7.52.1
+127.0.0.1:52992 - - [Thu, 21 May 2020 01:28:11 UTC] "GET /login HTTP/1.1" curl/7.52.1
+127.0.0.1:53044 - - [Thu, 21 May 2020 01:28:47 UTC] "GET /login HTTP/1.1" curl/7.52.1
+127.0.0.1:53062 - - [Thu, 21 May 2020 01:29:00 UTC] "GET /secure HTTP/1.1" curl/7.52.1
+
+kubectl logs -f monolith -> to get a stream of the logs happening in real-time
+
+Pods aren't meant to be persistent. They can be stopped or started for many reasons - like failed liveness or readiness checks - and this leads to a problem:
+
+What happens if you want to communicate with a set of Pods? When they get restarted they might have a different IP address. Services provide stable endpoints for Pods.
+
+Services use labels to determine what Pods they operate on. If Pods have the correct labels, they are automatically picked up and exposed by our services.
+
+The level of access a service provides to a set of pods depends on the Service's type. Currently there are three types:
+
+ClusterIP (internal) -- the default type means that this Service is only visible inside of the cluster,
+NodePort gives each node in the cluster an externally accessible IP and
+LoadBalancer adds a load balancer from the cloud provider which forwards traffic from the service to Nodes within it.
+
+cat pods/secure-monolith.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "secure-monolith"
+  labels:
+    app: monolith
+spec:
+  containers:
+    - name: nginx
+      image: "nginx:1.9.14"
+      lifecycle:
+        preStop:
+          exec:
+            command: ["/usr/sbin/nginx","-s","quit"]
+      volumeMounts:
+        - name: "nginx-proxy-conf"
+          mountPath: "/etc/nginx/conf.d"
+        - name: "tls-certs"
+          mountPath: "/etc/tls"
+    - name: monolith
+      image: "kelseyhightower/monolith:1.0.0"
+      ports:
+        - name: http
+          containerPort: 80
+        - name: health
+          containerPort: 81
+      resources:
+        limits:
+          cpu: 0.2
+          memory: "10Mi"
+      livenessProbe:
+        httpGet:
+          path: /healthz
+          port: 81
+          scheme: HTTP
+        initialDelaySeconds: 5
+        periodSeconds: 15
+        timeoutSeconds: 5
+      readinessProbe:
+        httpGet:
+          path: /readiness
+          port: 81
+          scheme: HTTP
+        initialDelaySeconds: 5
+        timeoutSeconds: 1
+  volumes:
+    - name: "tls-certs"
+      secret:
+        secretName: "tls-certs"
+    - name: "nginx-proxy-conf"
+      configMap:
+        name: "nginx-proxy-conf"
+        items:
+          - key: "proxy.conf"
+            path: "proxy.conf"
+
+kubectl create secret generic tls-certs --from-file tls/
+kubectl create configmap nginx-proxy-conf --from-file nginx/proxy.conf
+kubectl create -f pods/secure-monolith.yaml
+
+kubectl describe services monolith
+Name:                     monolith
+Namespace:                default
+Labels:                   <none>
+Annotations:              <none>
+Selector:                 app=monolith,secure=enabled
+Type:                     NodePort
+IP:                       10.7.240.118
+Port:                     <unset>  443/TCP
+TargetPort:               443/TCP
+NodePort:                 <unset>  31000/TCP
+Endpoints:                <none>
+Session Affinity:         None
+External Traffic Policy:  Cluster
+Events:                   <none>
+
+Why are you unable to get a response from the monolith service?
+How many endpoints does the monolith service have?
+What labels must a Pod have to be picked up by the monolith service?
+
+kubectl get services
+
+NAME         TYPE           CLUSTER-IP     EXTERNAL-IP    PORT(S)        AGE
+kubernetes   ClusterIP      10.7.240.1     <none>         443/TCP        40m
+nginx        LoadBalancer   10.7.242.207   35.238.98.71   80:32581/TCP   32m
+
+gcloud compute firewall-rules create allow-monolith-nodeport --allow=tcp:31000
+
+#: add label
+kubectl label pods secure-monolith 'secure=enabled'
+
+#: show labels
+kubectl get pods secure-monolith --show-labels
+NAME              READY   STATUS    RESTARTS   AGE     LABELS
+secure-monolith   2/2     Running   0          9m58s   app=monolith,secure=enabled
+
+kubectl describe services monolith | grep Endpoints
+Endpoints:                10.4.2.3:443
