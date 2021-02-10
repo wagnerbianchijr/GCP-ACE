@@ -11,6 +11,7 @@ I hope it helps you to learn more.
 * [Managing Deployments Using Kubernetes Engine](https://github.com/wagnerbianchijr/GCP-ACE/blob/master/QwickLabs/Qwicklabs%20-%20Managing%20Deployments%20Using%20Kubernetes%20Engine)
 * [Orchestrating the Cloud with Kubernetes](https://github.com/wagnerbianchijr/GCP-ACE/blob/master/QwickLabs/Qwicklabs%20-%20Orchestrating%20the%20Cloud%20with%20Kubernetes)
 * [Set up and Configure a Cloud Environment in Google Cloud](https://github.com/wagnerbianchijr/GCP-ACE/blob/master/QwickLabs/Qwicklabs%20-%20Set%20up%20and%20Configure%20a%20Cloud%20Environment%20in%20Google%20Cloud)
+* [Working with multiple VPCs](https://github.com/wagnerbianchijr/GCP-ACE/blob/master/QwickLabs/Qwicklabs%20-%20Working%20with%20multiple%20VPCs)
 * [Cloud Engineering Challenge Lab](https://github.com/wagnerbianchijr/GCP-ACE/blob/master/QwickLabs/Qwicklabs%20-%20Cloud%20Engineering%20Challenge%20Lab)
 
 **A Cloud Guru - Google Certified Associate Cloud Engineer 2020**
