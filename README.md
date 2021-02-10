@@ -9,6 +9,7 @@ I hope it helps you to learn more.
 * [Deployment Manager - Full Production](https://github.com/wagnerbianchijr/GCP-ACE/blob/master/QwickLabs/Qwicklabs%20-%20Deployment%20Manager%20-%20Full%20Production)
 * [Google Cloud Essentials, Challenge Lab](https://github.com/wagnerbianchijr/GCP-ACE/blob/master/QwickLabs/Qwicklabs%20-%20Google%20Cloud%20Essentials%2C%20Challenge%20Lab)
 * [Managing Deployments Using Kubernetes Engine](https://github.com/wagnerbianchijr/GCP-ACE/blob/master/QwickLabs/Qwicklabs%20-%20Managing%20Deployments%20Using%20Kubernetes%20Engine)
+* [Orchestrating the Cloud with Kubernetes](https://github.com/wagnerbianchijr/GCP-ACE/blob/master/QwickLabs/Qwicklabs%20-%20Orchestrating%20the%20Cloud%20with%20Kubernetes)
 * [Set up and Configure a Cloud Environment in Google Cloud](https://github.com/wagnerbianchijr/GCP-ACE/blob/master/QwickLabs/Qwicklabs%20-%20Set%20up%20and%20Configure%20a%20Cloud%20Environment%20in%20Google%20Cloud)
 * [Cloud Engineering Challenge Lab](https://github.com/wagnerbianchijr/GCP-ACE/blob/master/QwickLabs/Qwicklabs%20-%20Cloud%20Engineering%20Challenge%20Lab)
 
