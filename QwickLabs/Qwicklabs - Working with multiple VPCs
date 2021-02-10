@@ -1,0 +1,204 @@
+Create a VPC managementnet with a subnet a managementsubnet-us | US-CENTRAL1 | 10.130.0.0/20
+
+gcloud compute --project=qwiklabs-gcp-02-fa31014eeae2 networks create managementnet --subnet-mode=custom
+gcloud compute --project=qwiklabs-gcp-02-fa31014eeae2 networks subnets create managementsubnet-us \
+	--network=managementnet --region=us-central1 --range=10.130.0.0/20
+
+--
+
+Create the privatenet network using the Cloud Shell command line
+
+gcloud compute networks create privatenet --subnet-mode=custom
+gcloud compute networks subnets create privatesubnet-us --network=privatenet \
+	--region=us-central1 --range=172.16.0.0/24
+gcloud compute networks subnets create privatesubnet-eu --network=privatenet \
+	--region=europe-west1 --range=172.20.0.0/20
+
+$ gcloud compute networks create privatenet --subnet-mode=custom
+Created [https://www.googleapis.com/compute/v1/projects/qwiklabs-gcp-03-6f9d4ae3cab4/global/networks/privatenet].
+NAME        SUBNET_MODE  BGP_ROUTING_MODE  IPV4_RANGE  GATEWAY_IPV4
+privatenet  CUSTOM       REGIONAL
+
+Instances on this network will not be reachable until firewall rules
+are created. As an example, you can allow all internal traffic between
+instances as well as SSH, RDP, and ICMP by running:
+
+$ gcloud compute firewall-rules create <FIREWALL_NAME> --network privatenet --allow tcp,udp,icmp --source-ranges <IP_RANGE>
+$ gcloud compute firewall-rules create <FIREWALL_NAME> --network privatenet --allow tcp:22,tcp:3389,icmp
+
+$ gcloud compute networks subnets create privatesubnet-us --network=privatenet \
+> --region=us-central1 --range=172.16.0.0/24
+Created [https://www.googleapis.com/compute/v1/projects/qwiklabs-gcp-03-6f9d4ae3cab4/regions/us-central1/subnetworks/privatesubnet-us].
+NAME              REGION       NETWORK     RANGE
+privatesubnet-us  us-central1  privatenet  172.16.0.0/24
+$ gcloud compute networks subnets create privatesubnet-eu --network=privatenet \
+> --region=europe-west1 --range=172.20.0.0/20
+Created [https://www.googleapis.com/compute/v1/projects/qwiklabs-gcp-03-6f9d4ae3cab4/regions/europe-west1/subnetworks/privatesubnet-eu].
+NAME              REGION        NETWORK     RANGE
+privatesubnet-eu  europe-west1  privatenet  172.20.0.0/20
+
+Create firewall rules to allow SSH, ICMP, and RDP ingress traffic to VM instances on the managementnet network.
+
+gcloud compute --project=qwiklabs-gcp-03-6f9d4ae3cab4 firewall-rules create managementnet-allow-icmp-ssh-rdp \
+--description=managementnet-allow-icmp-ssh-rdp --direction=INGRESS --priority=1000 --network=managementnet \
+--action=ALLOW --rules=tcp:22,tcp:3389,icmp --source-ranges=0.0.0.0/0
+
+PS: All instances on this VPC will accept incoming conections on 22, 3389 and also ping from anywhere.
+
+Create the firewall rules for privatenet network using the Cloud Shell command line.
+
+gcloud compute --project=qwiklabs-gcp-03-6f9d4ae3cab4 firewall-rules create privatenet-allow-icmp-ssh-rdp \
+--direction=INGRESS --priority=1000 --network=privatenet --action=ALLOW --rules=icmp,tcp:22,tcp:3389 \
+--source-ranges=0.0.0.0/0
+
+PS: All instances on this VPC will accept incoming conections on 22, 3389 and also ping from anywhere.
+
+$ gcloud compute firewall-rules list --sort-by=NETWORK
+NAME                              NETWORK        DIRECTION  PRIORITY  ALLOW                         DENY  DISABLED
+default-allow-icmp                default        INGRESS    65534     icmp                                False
+default-allow-internal            default        INGRESS    65534     tcp:0-65535,udp:0-65535,icmp        False
+default-allow-rdp                 default        INGRESS    65534     tcp:3389                            False
+default-allow-ssh                 default        INGRESS    65534     tcp:22                              False
+managementnet-allow-icmp-ssh-rdp  managementnet  INGRESS    1000      tcp:22,tcp:3389,icmp                False
+mynetwork-allow-icmp              mynetwork      INGRESS    1000      icmp                                False
+mynetwork-allow-rdp               mynetwork      INGRESS    1000      tcp:3389                            False
+mynetwork-allow-ssh               mynetwork      INGRESS    1000      tcp:22                              False
+privatenet-allow-icmp-ssh-rdp     privatenet     INGRESS    1000      icmp,tcp:22,tcp:3389                False
+
+Create two VM instances:
+
+  - managementnet-us-vm in managementsubnet-us
+  gcloud beta compute --project=qwiklabs-gcp-03-6f9d4ae3cab4 instances create managementnet-us-vm --zone=us-central1-c --machine-type=f1-micro --subnet=managementsubnet-us --network-tier=PREMIUM --maintenance-policy=MIGRATE --service-account=208864247636-compute@developer.gserviceaccount.com --scopes=https://www.googleapis.com/auth/devstorage.read_only,https://www.googleapis.com/auth/logging.write,https://www.googleapis.com/auth/monitoring.write,https://www.googleapis.com/auth/servicecontrol,https://www.googleapis.com/auth/service.management.readonly,https://www.googleapis.com/auth/trace.append --image=debian-10-buster-v20200413 --image-project=debian-cloud --boot-disk-size=10GB --boot-disk-type=pd-standard --boot-disk-device-name=managementnet-us-vm --no-shielded-secure-boot --shielded-vtpm --shielded-integrity-monitoring --reservation-affinity=any
+
+  - privatenet-us-vm in privatesubnet-us
+  gcloud compute instances create privatenet-us-vm --zone=us-central1-c --machine-type=n1-standard-1 --subnet=privatesubnet-us
+
+$ gcloud compute instances list --sort-by=ZONE
+NAME                 ZONE            MACHINE_TYPE   PREEMPTIBLE  INTERNAL_IP  EXTERNAL_IP      STATUS
+mynet-eu-vm          europe-west1-c  n1-standard-1               10.132.0.2   104.155.118.195  RUNNING
+managementnet-us-vm  us-central1-c   f1-micro                    10.130.0.2   35.222.131.252   RUNNING
+mynet-us-vm          us-central1-c   n1-standard-1               10.128.0.2   34.72.225.36     RUNNING
+privatenet-us-vm     us-central1-c   n1-standard-1               172.16.0.2   35.238.151.170   RUNNING
+
+---
+Ping the external IP addresses
+
+For mynet-us-vm, click SSH to launch a terminal and connect. To test connectivity to mynet-eu-vm's external IP, run the following command, replacing mynet-eu-vm's external IP (ping -c 3 <Enter mynet-eu-vm's external IP here>):
+
+student-03-646147128399@mynet-us-vm:~$ ping -c 3 104.155.118.195
+PING 104.155.118.195 (104.155.118.195) 56(84) bytes of data.
+64 bytes from 104.155.118.195: icmp_seq=1 ttl=57 time=103 ms
+64 bytes from 104.155.118.195: icmp_seq=2 ttl=57 time=103 ms
+64 bytes from 104.155.118.195: icmp_seq=3 ttl=57 time=103 ms
+
+--- 104.155.118.195 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+rtt min/avg/max/mdev = 103.477/103.597/103.833/0.166 ms
+
+To test connectivity to managementnet-us-vm's external IP, run the following command, replacing managementnet-us-vm's external IP (ping -c 3 <Enter managementnet-us-vm's external IP here>):
+
+student-03-646147128399@mynet-us-vm:~$ ping -c 3 35.222.131.252
+PING 35.222.131.252 (35.222.131.252) 56(84) bytes of data.
+64 bytes from 35.222.131.252: icmp_seq=1 ttl=64 time=1.90 ms
+64 bytes from 35.222.131.252: icmp_seq=2 ttl=64 time=1.82 ms
+64 bytes from 35.222.131.252: icmp_seq=3 ttl=64 time=1.78 ms
+
+--- 35.222.131.252 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2002ms
+rtt min/avg/max/mdev = 1.789/1.840/1.904/0.047 ms
+
+To test connectivity to privatenet-us-vm's external IP, run the following command, replacing privatenet-us-vm's external IP (ping -c 3 <Enter privatenet-us-vm's external IP here>):
+
+student-03-646147128399@mynet-us-vm:~$ ping -c 3 35.238.151.170
+PING 35.238.151.170 (35.238.151.170) 56(84) bytes of data.
+64 bytes from 35.238.151.170: icmp_seq=1 ttl=64 time=1.96 ms
+64 bytes from 35.238.151.170: icmp_seq=2 ttl=64 time=1.77 ms
+64 bytes from 35.238.151.170: icmp_seq=3 ttl=64 time=1.85 ms
+
+--- 35.238.151.170 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+rtt min/avg/max/mdev = 1.779/1.864/1.963/0.075 ms
+
+
+Ping the internal IP addresses
+
+Ping the internal IP addresses of the VM instances to determine if you can reach the instances from within a VPC network.
+
+student-03-646147128399@mynet-us-vm:~$ ping -c 3 10.132.0.2
+PING 10.132.0.2 (10.132.0.2) 56(84) bytes of data.
+64 bytes from 10.132.0.2: icmp_seq=1 ttl=64 time=114 ms
+64 bytes from 10.132.0.2: icmp_seq=2 ttl=64 time=113 ms
+64 bytes from 10.132.0.2: icmp_seq=3 ttl=64 time=113 ms
+
+--- 10.132.0.2 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+rtt min/avg/max/mdev = 113.315/113.687/114.416/0.584 ms
+
+student-03-646147128399@mynet-us-vm:~$ ping -c 3 10.130.0.2
+PING 10.130.0.2 (10.130.0.2) 56(84) bytes of data.
+
+--- 10.130.0.2 ping statistics ---
+3 packets transmitted, 0 received, 100% packet loss, time 2044ms
+
+student-03-646147128399@mynet-us-vm:~$ ping -c 3 172.16.0.2
+PING 172.16.0.2 (172.16.0.2) 56(84) bytes of data.
+
+--- 172.16.0.2 ping statistics ---
+3 packets transmitted, 0 received, 100% packet loss, time 2047ms
+
+- mynet-us-vm->mynet-eu-vm (OK)
+- mynet-us-vm->managementnet-us-vm (NO)
+- mynet-us-vm->privatenet-us-vm (NO)
+
+Create the vm-appliance instance with network interfaces in privatesubnet-us, managementsubnet-us and mynetwork. The CIDR ranges of these subnets do not overlap, which is a requirement for creating a VM with multiple network interface controllers (NICs).
+
+gcloud beta compute --project=qwiklabs-gcp-03-6f9d4ae3cab4 instances create vm-appliance --zone=us-central1-c \
+--machine-type=n1-standard-4 --subnet=privatesubnet-us --network-tier=PREMIUM --maintenance-policy=MIGRATE \
+--service-account=208864247636-compute@developer.gserviceaccount.com --scopes=https://www.googleapis.com/auth/devstorage.read_only,https://www.googleapis.com/auth/logging.write,https://www.googleapis.com/auth/monitoring.write,https://www.googleapis.com/auth/servicecontrol,https://www.googleapis.com/auth/service.management.readonly,https://www.googleapis.com/auth/trace.append \
+--image=debian-10-buster-v20200413 --image-project=debian-cloud --boot-disk-size=10GB --boot-disk-type=pd-standard --boot-disk-device-name=vm-appliance --no-shielded-secure-boot --shielded-vtpm --shielded-integrity-monitoring --reservation-affinity=any
+
+student-03-646147128399@vm-appliance:~$ ping -c 3 10.132.0.2
+PING 10.132.0.2 (10.132.0.2) 56(84) bytes of data.
+
+--- 10.132.0.2 ping statistics ---
+3 packets transmitted, 0 received, 100% packet loss, time 33ms
+
+student-03-646147128399@vm-appliance:~$ ping -c 3 10.130.0.2
+PING 10.130.0.2 (10.130.0.2) 56(84) bytes of data.
+64 bytes from 10.130.0.2: icmp_seq=1 ttl=64 time=1.65 ms
+64 bytes from 10.130.0.2: icmp_seq=2 ttl=64 time=0.277 ms
+64 bytes from 10.130.0.2: icmp_seq=3 ttl=64 time=0.348 ms
+
+--- 10.130.0.2 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 6ms
+rtt min/avg/max/mdev = 0.277/0.756/1.645/0.629 ms
+student-03-646147128399@vm-appliance:~$ ping -c 3 10.128.0.2
+PING 10.128.0.2 (10.128.0.2) 56(84) bytes of data.
+64 bytes from 10.128.0.2: icmp_seq=1 ttl=64 time=1.57 ms
+64 bytes from 10.128.0.2: icmp_seq=2 ttl=64 time=0.281 ms
+64 bytes from 10.128.0.2: icmp_seq=3 ttl=64 time=0.187 ms
+
+--- 10.128.0.2 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 16ms
+rtt min/avg/max/mdev = 0.187/0.678/1.566/0.629 ms
+student-03-646147128399@vm-appliance:~$ ping -c 3 172.16.0.2
+PING 172.16.0.2 (172.16.0.2) 56(84) bytes of data.
+64 bytes from 172.16.0.2: icmp_seq=1 ttl=64 time=1.45 ms
+64 bytes from 172.16.0.2: icmp_seq=2 ttl=64 time=0.241 ms
+64 bytes from 172.16.0.2: icmp_seq=3 ttl=64 time=0.237 ms
+
+--- 172.16.0.2 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 24ms
+rtt min/avg/max/mdev = 0.237/0.641/1.447/0.570 ms
+
+PS: we can ping all internal IPs but 10.132.0.2's
+
+#: no 10.132.0.0/20 CIDR 
+student-03-646147128399@vm-appliance:~$ ip route
+default via 172.16.0.1 dev ens4 
+10.128.0.0/20 via 10.128.0.1 dev ens6 
+10.128.0.1 dev ens6 scope link 
+10.130.0.0/20 via 10.130.0.1 dev ens5 
+10.130.0.1 dev ens5 scope link 
+172.16.0.0/24 via 172.16.0.1 dev ens4 
+172.16.0.1 dev ens4 scope link 
