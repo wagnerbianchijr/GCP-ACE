@@ -1,0 +1,318 @@
+#: Set up and Configure a Cloud Environment in Google Cloud: Challenge Lab
+#: https://google.qwiklabs.com/focuses/10603?parent=catalog
+
+Topics tested:
+
+Creating and using VPCs and subnets
+Configuring and launching a Deployment Manager configuration
+Creating a Kubernetes cluster
+Configuring and launching a Kubernetes deployment and service
+Setting up stackdriver monitoring
+Configuring an IAM role for an account
+
+You need to complete the following tasks:
+
+Create a development VPC with three subnets manually
+Create a production VPC with three subnets using a provided Deployment Manager configuration
+Create a bastion that is connected to both VPCs
+Create a development Cloud SQL Instance and connect and prepare the WordPress environment
+Create a Kubernetes cluster in the development VPC for WordPress
+Prepare the Kubernetes cluster for the WordPress environment
+Create a WordPress deployment using the supplied configuration (it's on GCS bucket)
+Enable monitoring of the cluster via stackdriver (https://google.qwiklabs.com/focuses/10599?parent=catalog)
+Provide access for an additional engineer
+
+Some Jooli Inc. standards you should follow:
+
+Create all resources in the us-east1 region and us-east1-b zone, unless otherwise directed.
+
+Use the project VPCs.
+
+Naming is normally team-resource, e.g. an instance could be named kraken-webserver1.
+
+Allocate cost effective resource sizes. Projects are monitored and excessive resource use will result in the containing project's termination (and possibly yours), so beware. This is the guidance the monitoring team is willing to share: unless directed, use n1-standard-1.
+
+---
+
+#: set region and zone
+gcloud config set compute/region us-east1
+gcloud config set compute/zone us-east1-b
+
+$ gcloud config configurations list
+NAME              IS_ACTIVE  ACCOUNT  PROJECT                       COMPUTE_DEFAULT_ZONE  COMPUTE_DEFAULT_REGION
+cloudshell-30956  True                qwiklabs-gcp-04-1abb3e95b196  us-east1-b            us-east1
+
+Task 1: Create development VPC manually
+
+#: create vpc griffin-dev-vpc
+gcloud compute networks create griffin-dev-vpc --subnet-mode=custom
+
+#: create a subnet griffin-dev-wp on vpc griffin-dev-vpc
+gcloud compute networks subnets create griffin-dev-wp --network=griffin-dev-vpc --range=192.168.16.0/20
+gcloud compute networks subnets create griffin-dev-mgmt --network=griffin-dev-vpc --range=192.168.32.0/20
+
+$ gcloud compute networks list
+NAME             SUBNET_MODE  BGP_ROUTING_MODE  IPV4_RANGE  GATEWAY_IPV4
+griffin-dev-vpc  CUSTOM       REGIONAL
+$ gcloud compute networks subnets list
+NAME              REGION    NETWORK          RANGE
+griffin-dev-mgmt  us-east1  griffin-dev-vpc  192.168.32.0/20
+griffin-dev-wp    us-east1  griffin-dev-vpc  192.168.16.0/20
+
+Task 2: Create production VPC using Deployment Manager
+
+#: copy all files from this bucket
+gsutil ls gs://cloud-training/gsp321/dm 
+
+#: list the bucket
+$ gsutil ls gs://cloud-training/gsp321/dm
+gs://cloud-training/gsp321/dm/prod-network.jinja
+gs://cloud-training/gsp321/dm/prod-network.yaml
+
+#: copy files form the bucket to the local dir on the Cloud Shell instance
+$ gsutil cp gs://cloud-training/gsp321/dm/** .
+Copying gs://cloud-training/gsp321/dm/prod-network.jinja...
+Copying gs://cloud-training/gsp321/dm/prod-network.yaml...
+/ [2 files][  721.0 B/  721.0 B]
+Operation completed over 2 objects/721.0 B.
+
+--> edit the file prod-network.yaml and enter the us-east1 region, save the file
+
+$ ls -lh
+total 12K
+-rw-r--r-- 1 student_04_a63220d752a1 student_04_a63220d752a1 589 May 23 14:18 prod-network.jinja
+-rw-r--r-- 1 student_04_a63220d752a1 student_04_a63220d752a1 132 May 23 14:18 prod-network.yaml
+-rw-r--r-- 1 student_04_a63220d752a1 student_04_a63220d752a1 913 May 23 14:13 README-cloudshell.txt
+
+$ vim prod-network.yaml
+$ vim prod-network.jinja
+
+
+#: run the deplyment manager to create production VPC
+gcloud deployment-manager deployments create advanced-configuration --config prod-network.yaml
+
+$ gcloud deployment-manager deployments create advanced-configuration --config prod-network.yaml
+The fingerprint of the deployment is b'MvC0oI4PaIpmchp_QpbVZA=='
+Waiting for create [operation-1590254447369-5a653f7701bf8-fd511c6d-4e0049e2]...done.
+Create operation operation-1590254447369-5a653f7701bf8-fd511c6d-4e0049e2 completed successfully.
+NAME               TYPE                              STATE      ERRORS  INTENT
+griffin-prod-mgmt  gcp-types/compute-v1:subnetworks  COMPLETED  []
+griffin-prod-vpc   gcp-types/compute-v1:networks     COMPLETED  []
+griffin-prod-wp    gcp-types/compute-v1:subnetworks  COMPLETED  []
+
+#: list the subnets for the production VPC: griffin-prod-vpc
+$ gcloud compute networks list
+NAME              SUBNET_MODE  BGP_ROUTING_MODE  IPV4_RANGE  GATEWAY_IPV4
+griffin-dev-vpc   CUSTOM       REGIONAL
+griffin-prod-vpc  CUSTOM       REGIONAL
+
+$ gcloud compute networks subnets list
+NAME               REGION    NETWORK           RANGE
+griffin-dev-mgmt   us-east1  griffin-dev-vpc   192.168.32.0/20
+griffin-dev-wp     us-east1  griffin-dev-vpc   192.168.16.0/20
+griffin-prod-mgmt  us-east1  griffin-prod-vpc  192.168.64.0/20
+griffin-prod-wp    us-east1  griffin-prod-vpc  192.168.48.0/20
+
+Task 3: Create bastion host
+
+#: create bastion host with two network interfaces, one connected to griffin-dev-mgmt and the 
+#: other connected to griffin-prod-mgmt. Make sure you can SSH to the host.
+#: https://cloud.google.com/vpc/docs/create-use-multiple-interfaces#example
+gcloud compute instances create kraken-bastion1 --machine-type=n1-standard-1 \
+    --network-interface subnet=griffin-dev-mgmt \
+    --network-interface subnet=griffin-prod-mgmt
+
+Created [https://www.googleapis.com/compute/v1/projects/qwiklabs-gcp-04-1abb3e95b196/zones/us-east1-b/instances/kraken-bastion1].
+NAME             ZONE        MACHINE_TYPE   PREEMPTIBLE  INTERNAL_IP                EXTERNAL_IP                 STATUS
+kraken-bastion1  us-east1-b  n1-standard-1               192.168.32.2,192.168.64.2  35.229.62.252,34.74.71.254  RUNNING
+
+"Please, create a firewall rile for griffin-dev-vpc with tcp:22"
+"Please, create a firewall rile for griffin-prod-vpc with tcp:22"
+
+#: firewall-rules creation for both VPCs
+gcloud compute firewall-rules create griffin-dev-vpc-allow-ssh --network griffin-dev-vpc --allow tcp:22
+gcloud compute firewall-rules create griffin-prod-vpc-allow-ssh --network griffin-prod-vpc --allow tcp:22
+
+#: list firewall-rules
+$ gcloud compute firewall-rules list
+NAME                        NETWORK           DIRECTION  PRIORITY  ALLOW   DENY  DISABLED
+griffin-dev-vpc-allow-ssh   griffin-dev-vpc   INGRESS    1000      tcp:22        False
+griffin-prod-vpc-allow-ssh  griffin-prod-vpc  INGRESS    1000      tcp:22        False
+
+Task 4: Create and configure Cloud SQL Instance (tested)
+
+#: create and configure Cloud SQL Instance
+#: the name of the Cloud SQl instance is set as "<project-name>:<region>:<instance-name>"
+#: https://cloud.google.com/sdk/gcloud/reference/sql
+gcloud sql instances create griffin-dev-db --enable-bin-log --root-password 12345678 \
+    --database-version MYSQL_5_7 --enable-bin-log --zone us-east1-b
+
+Creating Cloud SQL instance...⠶ (demora para caraleo)
+
+#: listing Cloud SQl instances
+gcloud sql instances list
+
+$ while [ 1 ]; do date; gcloud sql instances list; sleep 10; done
+Sat May 23 14:38:00 -03 2020
+NAME            DATABASE_VERSION  LOCATION    TIER              PRIMARY_ADDRESS  PRIVATE_ADDRESS  STATUS
+griffin-dev-db  MYSQL_5_7         us-east1-b  db-n1-standard-1  35.237.0.8       -                PENDING_CREATE
+...
+Sat May 23 14:38:58 -03 2020
+NAME            DATABASE_VERSION  LOCATION    TIER              PRIMARY_ADDRESS  PRIVATE_ADDRESS  STATUS
+griffin-dev-db  MYSQL_5_7         us-east1-b  db-n1-standard-1  35.237.0.8       -                RUNNABLE
+
+#: creating the wordpress database within the created database instance
+gcloud sql databases create wordpress --instance griffin-dev-db --charset=utf8 \
+    --collation utf8_general_ci
+
+Creating Cloud SQL database...done.
+Created database [wordpress].
+charset: utf8
+collation: utf8_general_ci
+instance: griffin-dev-db
+name: wordpress
+project: qwiklabs-gcp-04-1abb3e95b196
+
+#: listing databases like "show databases"
+gcloud sql databases list --instance griffin-dev-db --sort-by NAME
+
+NAME                CHARSET  COLLATION
+information_schema  utf8     utf8_general_ci
+mysql               utf8     utf8_general_ci
+performance_schema  utf8     utf8_general_ci
+sys                 utf8     utf8_general_ci
+wordpress           utf8     utf8_general_ci
+
+#: connect to the sql instance - the below will whitelist IP for access
+gcloud sql connect griffin-dev-db --user root
+
+Whitelisting your IP for incoming connection for 5 minutes...
+Connecting to database with SQL user [root].Enter password: <--root-password>
+
+-- create users
+CREATE DATABASE IF NOT EXISTS wordpress;
+CREATE USER "wp_user"@"%" IDENTIFIED BY "stormwind_rules";
+GRANT ALL PRIVILEGES ON wordpress.* TO "wp_user"@"%";
+FLUSH PRIVILEGES;
+
+#: checking access with the wp_user user
+$ gcloud sql connect griffin-dev-db --user wp_user
+Whitelisting your IP for incoming connection for 5 minutes...done.
+Connecting to database with SQL user [wp_user].Enter password:
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 51
+Server version: 5.7.25-google-log (Google)
+
+Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+mysql> select current_user();
++----------------+
+| current_user() |
++----------------+
+| wp_user@%      |
++----------------+
+1 row in set (0.00 sec)
+
+mysql> \q
+Bye
+
+Task 5: Create Kubernetes cluster
+
+#: creating the backend Kubernetes cluster
+gcloud container clusters create griffin-dev \
+          --num-nodes 2 \
+          --machine-type n1-standard-4 \
+          --network griffin-dev-vpc \
+          --subnetwork griffin-dev-wp \
+          --region us-east1 \
+          --node-locations us-east1-b
+
+Creating cluster griffin-dev in us-east1... Cluster is being health-checked (master is healthy)...done.
+Created [https://container.googleapis.com/v1/projects/qwiklabs-gcp-04-1abb3e95b196/zones/us-east1/clusters/griffin-dev].
+To inspect the contents of your cluster, go to: https://console.cloud.google.com/kubernetes/workload_/gcloud/us-east1/griffin-dev?project=qwiklabs-gcp-04-1abb3e95b196
+kubeconfig entry generated for griffin-dev.
+NAME         LOCATION  MASTER_VERSION  MASTER_IP     MACHINE_TYPE   NODE_VERSION    NUM_NODES  STATUS
+griffin-dev  us-east1  1.14.10-gke.36  34.73.126.34  n1-standard-4  1.14.10-gke.36  2          RUNNING
+
+#: getting credentials
+#: https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl
+$ gcloud container clusters get-credentials griffin-dev --region us-east1
+Fetching cluster endpoint and auth data.
+kubeconfig entry generated for griffin-dev.
+
+--- 2020.05.26 - I didn't run below commands
+
+#: adding an docker image to be deployed
+kubectl create deployment hello-server \
+          --image=gcr.io/google-samples/hello-app:2.0
+
+#: exposing the deployment
+kubectl expose deployment hello-server \
+          --type=LoadBalancer \
+          --port 8080
+
+---
+
+#: getting exposed running deployments and services
+
+$ kubectl get deployment
+NAME           READY   UP-TO-DATE   AVAILABLE   AGE
+hello-server   1/1     1            1           24s
+
+$ kubectl get services
+NAME           TYPE           CLUSTER-IP    EXTERNAL-IP   PORT(S)          AGE
+hello-server   LoadBalancer   10.47.242.1   <pending>     8080:30902/TCP   15s
+kubernetes     ClusterIP      10.47.240.1   <none>        443/TCP          4m27s
+
+Task 6: Prepare the Kubernetes cluster (instructions on the screen)
+
+$ gsutil ls gs://cloud-training/gsp321/wp-k8s/**
+gs://cloud-training/gsp321/wp-k8s/wp-deployment.yaml
+gs://cloud-training/gsp321/wp-k8s/wp-env.yaml
+gs://cloud-training/gsp321/wp-k8s/wp-service.yaml
+
+$ gsutil cp gs://cloud-training/gsp321/wp-k8s/** .
+Copying gs://cloud-training/gsp321/wp-k8s/wp-deployment.yaml...
+Copying gs://cloud-training/gsp321/wp-k8s/wp-env.yaml...
+Copying gs://cloud-training/gsp321/wp-k8s/wp-service.yaml...
+/ [3 files][  2.1 KiB/  2.1 KiB]
+Operation completed over 3 objects/2.1 KiB.
+
+gcloud iam service-accounts keys create key.json \
+    --iam-account=cloud-sql-proxy@$GOOGLE_CLOUD_PROJECT.iam.gserviceaccount.com
+
+kubectl create secret generic cloudsql-instance-credentials \
+    --from-file key.json
+
+$ kubectl apply -f wp-env.yaml
+persistentvolumeclaim/wordpress-volumeclaim created
+secret/database created
+
+--- 2020.05.23
+
+Task 7: Create a WordPress deployment (instructions on the screen)
+
+$ kubectl apply -f wp-deployment.yaml
+deployment.apps/wordpress created
+
+$ kubectl apply -f wp-service.yaml
+service/wordpress created
+
+Task 8: Enable monitoring (https://google.qwiklabs.com/focuses/10599?parent=catalog)
+
+https://cloud.google.com/monitoring/uptime-checks
+https://cloud.google.com/monitoring/kubernetes-engine/installing
+https://codelabs.developers.google.com/codelabs/cloud-monitoring-alerting/index.html?index=..%2F..index#4
+
+Task 9: Provide access for an additional engineer
+
+#: https://cloud.google.com/iam/docs/granting-changing-revoking-access#granting-gcloud-manual
+#: to grant the Viewer role to the user my-user@example.com for the project my-project:
+gcloud projects add-iam-policy-binding qwiklabs-gcp-04-7eb3873fd3ed \
+    --member=user:student-04-a34044157960@qwiklabs.net --role=roles/editor
