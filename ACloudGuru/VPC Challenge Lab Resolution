@@ -1,0 +1,441 @@
+#: setting region  
+gcloud config set compute/region us-west1 
+
+#: creating the VPC 01 
+gcloud compute --project=pimballeke-new-project005 networks create wb01 --description=wb01 --subnet-mode=custom  
+
+#: listing VPCs  
+gcloud compute --project=pimballeke-new-project005 networks list  
+
+#: creating two subnets  
+gcloud compute --project=pimballeke-new-project005 networks subnets create wb01-subnet-a \
+--network=wb01 --region=us-west1 --range=192.168.0.0/24  
+
+gcloud compute --project=pimballeke-new-project005 networks subnets create wb01-subnet-b \
+--network=wb01 --region=us-west1 --range=192.168.1.0/24  
+
+gcloud compute --project=pimballeke-new-project005 networks subnets create wb01-subnet-c \
+--network=wb01 --region=us-west1 --range=192.168.2.0/24  
+
+#: listing subnets  
+gcloud compute networks subnets list  
+NAME           REGION    NETWORK  RANGE  
+wb01-subnet-a  us-west1  wb01     192.168.0.0/24  
+wb01-subnet-b  us-west1  wb01     192.168.1.0/24  
+wb01-subnet-c  us-west1  wb01     192.168.2.0/24
+
+#: Create the Custom Role named Base GCP Role wrapping the Logs Writer, Monitoring Metric Writer permissions  
+gcloud iam roles create BaseGCERole102 --project=pimballeke-new-project005 --title=BaseGCERole102 \
+--description="BaseGCERole102" --stage="GA" \
+--permissions=logging.logEntries.create,monitoring.metricDescriptors.create,monitoring.metricDescriptors.get,monitoring.metricDescriptors.list,monitoring.monitoredResourceDescriptors.get,monitoring.monitoredResourceDescriptors.list,monitoring.timeSeries.create
+
+#: list the created role  
+gcloud iam roles list --project $(gcloud config get-value project)  
+Your active configuration is: [cloudshell-27980]  
+---  
+description: BaseGCERole102  
+etag: BwWvrOuC1Ak=  
+name: projects/pimballeke-new-project005/roles/BaseGCERole102  
+stage: GA  
+title: BaseGCERole102  
+
+#: Create the fronted-sa and the backend-sa service accounts (compute engines and firewall rules runs with them)    
+gcloud iam service-accounts create frontend-sa --display-name "frontend-sa"    
+gcloud iam service-accounts create backend-sa --display-name "backend-sa"    
+
+#: listing service-accounts    
+gcloud iam service-accounts list    
+DISPLAY NAME  EMAIL                                                          DISABLED    
+frontend-sa   frontend-sa@pimballeke-new-project005.iam.gserviceaccount.com  False    
+backend-sa    backend-sa@pimballeke-new-project005.iam.gserviceaccount.com   False    
+
+#: add policy binding stating the role previously created    
+gcloud iam service-accounts add-iam-policy-binding frontend-sa@pimballeke-new-project005.iam.gserviceaccount.com --member='user:email@gmail.com' \  
+--role='projects/pimballeke-new-project005/roles/BaseGCERole102'  
+
+gcloud iam service-accounts add-iam-policy-binding backend-sa@pimballeke-new-project005.iam.gserviceaccount.com --member='user:email@gmail.com' \  
+--role='projects/pimballeke-new-project005/roles/BaseGCERole102'    
+
+#: liting bindings to our service accounts    
+gcloud iam service-accounts get-iam-policy frontend-sa@pimballeke-new-project005.iam.gserviceaccount.com    
+bindings:    
+- members:    
+  - user:pimballeke@gmail.com    
+  role: projects/pimballeke-new-project005/roles/BaseGCERole100    
+etag: BwWvq5fZYAI=    
+version: 1    
+
+gcloud iam service-accounts get-iam-policy backend-sa@pimballeke-new-project005.iam.gserviceaccount.com    
+bindings:    
+- members:    
+  - user:pimballeke@gmail.com    
+  role: projects/pimballeke-new-project005/roles/BaseGCERole100    
+etag: BwWvq5kc5YA=    
+version: 1    
+
+#: Create the Instance Templates frontend-it and the backend-it  
+gcloud compute instance-templates create frontend-it --machine-type=f1-micro --tags=open-ssh-tag \  
+--network=wb01 --subnet=wb01-subnet-a --service-account=frontend-sa@pimballeke-new-project005.iam.gserviceaccount.com    
+
+Created [https://www.googleapis.com/compute/v1/projects/pimballeke-new-project005/global/instanceTemplates/frontend-it].    
+NAME         MACHINE_TYPE  PREEMPTIBLE  CREATION_TIMESTAMP    
+frontend-it  f1-micro                   2020-09-19T07:45:16.585-07:00    
+
+gcloud compute instance-templates create backend-it --machine-type=f1-micro \  
+--network=wb01 --subnet=wb01-subnet-a --service-account=backend-sa@pimballeke-new-project005.iam.gserviceaccount.com    
+
+Created [https://www.googleapis.com/compute/v1/projects/pimballeke-new-project005/global/instanceTemplates/backend-it].    
+NAME        MACHINE_TYPE  PREEMPTIBLE  CREATION_TIMESTAMP    
+backend-it  f1-micro                   2020-09-19T07:47:08.354-07:00  
+
+#: listing instance-templates  
+gcloud compute instance-templates list  
+NAME         MACHINE_TYPE  PREEMPTIBLE  CREATION_TIMESTAMP  
+backend-it   f1-micro                   2020-09-19T09:20:00.557-07:00  
+frontend-it  f1-micro                   2020-09-19T09:19:25.564-07:00
+
+#: frontend 
+gcloud beta compute --project=pimballeke-new-project005 instance-groups managed create frontend-ig \
+--base-instance-name=frontend-ig --template=frontend-it --size=3 --zones=us-west1-a,us-west1-b,us-west1-c \
+--instance-redistribution-type=PROACTIVE
+
+Created [https://www.googleapis.com/compute/beta/projects/pimballeke-new-project005/regions/us-west1/instanceGroupManagers/frontend-ig].  
+NAME         LOCATION  SCOPE   BASE_INSTANCE_NAME  SIZE  TARGET_SIZE  INSTANCE_TEMPLATE  AUTOSCALED  
+frontend-ig  us-west1  region  frontend-ig         0     3            frontend-it        no  
+
+gcloud beta compute --project "pimballeke-new-project005" instance-groups managed set-autoscaling "frontend-ig" \
+--region "us-west1" --cool-down-period "60" --max-num-replicas "3" --min-num-replicas "2" \
+--target-cpu-utilization "0.1" --mode "on"  
+
+Created [https://www.googleapis.com/compute/beta/projects/pimballeke-new-project005/regions/us-west1/autoscalers/frontend-ig-bbwt].  
+---  
+autoscalingPolicy:  
+  coolDownPeriodSec: 60  
+  cpuUtilization:  
+    utilizationTarget: 0.1  
+  maxNumReplicas: 3  
+  minNumReplicas: 2  
+  mode: ON  
+creationTimestamp: '2020-08-26T12:40:41.379-07:00'  
+id: '628738619668628566'  
+kind: compute#autoscaler  
+name: frontend-ig-bbwt  
+region: https://www.googleapis.com/compute/beta/projects/pimballeke-new-project005/regions/us-west1  
+selfLink: https://www.googleapis.com/compute/beta/projects/pimballeke-new-project005/regions/us-west1/autoscalers/frontend-ig-bbwt  
+status: PENDING  
+target: https://www.googleapis.com/compute/beta/projects/pimballeke-new-project005/regions/us-west1/instanceGroupManagers/frontend-ig  
+
+#: list instances
+gcloud compute instances list  
+NAME              ZONE        MACHINE_TYPE  PREEMPTIBLE  INTERNAL_IP  EXTERNAL_IP    STATUS  
+frontend-ig-fjdf  us-west1-a  f1-micro                   192.168.0.3  35.247.23.188  RUNNING  
+frontend-ig-wbql  us-west1-b  f1-micro                   192.168.0.2  34.82.135.118  RUNNING  
+frontend-ig-8tjw  us-west1-c  f1-micro                   192.168.0.4  34.105.89.175  RUNNING  
+
+#: backend  
+gcloud beta compute --project=pimballeke-new-project005 instance-groups managed create backend-ig \
+--base-instance-name=backend-ig --template=backend-it --size=3 --zones=us-west1-a,us-west1-b,us-west1-c \
+--instance-redistribution-type=PROACTIVE  
+
+Created [https://www.googleapis.com/compute/beta/projects/pimballeke-new-project005/regions/us-west1/instanceGroupManagers/backend-ig].  
+NAME        LOCATION  SCOPE   BASE_INSTANCE_NAME  SIZE  TARGET_SIZE  INSTANCE_TEMPLATE  AUTOSCALED  
+backend-ig  us-west1  region  backend-ig          0     3            backend-it         no  
+
+gcloud beta compute --project "pimballeke-new-project005" instance-groups managed set-autoscaling "backend-ig" \
+--region "us-west1" --cool-down-period "60" --max-num-replicas "3" --min-num-replicas "2" \
+--target-cpu-utilization "0.1" --mode "on"  
+
+Created [https://www.googleapis.com/compute/beta/projects/pimballeke-new-project005/regions/us-west1/autoscalers/backend-ig-y45r].  
+---  
+autoscalingPolicy:  
+  coolDownPeriodSec: 60  
+  cpuUtilization:  
+    utilizationTarget: 0.1  
+  maxNumReplicas: 3  
+  minNumReplicas: 2  
+  mode: ON  
+creationTimestamp: '2020-08-26T12:43:46.822-07:00'  
+id: '5381689342276863389'  
+kind: compute#autoscaler  
+name: backend-ig-y45r  
+region: https://www.googleapis.com/compute/beta/projects/pimballeke-new-project005/regions/us-west1  
+selfLink: https://www.googleapis.com/compute/beta/projects/pimballeke-new-project005/regions/us-west1/autoscalers/backend-ig-y45r  
+status: PENDING  
+target: https://www.googleapis.com/compute/beta/projects/pimballeke-new-project005/regions/us-west1/instanceGroupManagers/backend-ig  
+
+#: list instances from the MIG  
+gcloud compute instances list  
+NAME              ZONE        MACHINE_TYPE  PREEMPTIBLE  INTERNAL_IP  EXTERNAL_IP     STATUS  
+backend-ig-cr5j   us-west1-a  f1-micro                   192.168.2.3  34.105.105.41   RUNNING  
+frontend-ig-fjdf  us-west1-a  f1-micro                   192.168.0.3  35.247.23.188   RUNNING  
+backend-ig-2sz4   us-west1-b  f1-micro                   192.168.2.4  104.198.102.15  RUNNING  
+frontend-ig-wbql  us-west1-b  f1-micro                   192.168.0.2  34.82.135.118   RUNNING  
+backend-ig-mrph   us-west1-c  f1-micro                   192.168.2.2  34.83.30.166    RUNNING
+
+#: setting firewall rules for frontend 
+#: accept incoming ping form the internet  
+gcloud compute firewall-rules create allow-external-icmp-fwr --network wb01 --allow icmp \
+--target-tags open-ssh-tag --source-ranges 0.0.0.0/0 --priority=100  
+
+#: accept ssh from the internet  
+gcloud compute firewall-rules create allow-external-ssh-fwr --network wb01 --allow tcp:22 \
+--target-service-accounts frontend-sa@pimballeke-new-project005.iam.gserviceaccount.com \
+--source-ranges 0.0.0.0/0 --priority=101
+
+#: can connect (icmp) frontend to backends and vice-versa  
+gcloud compute firewall-rules create allow-internal-frontend-to-backend-icmp-fwr --network wb01 --allow icmp \
+--source-service-accounts frontend-sa@pimballeke-new-project005.iam.gserviceaccount.com \
+--target-service-accounts backend-sa@pimballeke-new-project005.iam.gserviceaccount.com \
+--priority=102
+
+#: allow ssh from the frontend to the backend  
+gcloud compute firewall-rules create allow-internal-frontend-to-backend-ssh-fwr --network wb01 --allow tcp:22 \
+--source-service-accounts frontend-sa@pimballeke-new-project005.iam.gserviceaccount.com \
+--target-service-accounts backend-sa@pimballeke-new-project005.iam.gserviceaccount.com\
+--priority=103
+
+#: allow ssh from the frontend to the backend  
+gcloud compute firewall-rules create allow-internal-backend-to-frontend-ssh-fwr --network wb01 --allow tcp:22 \
+--source-service-accounts backend-sa@pimballeke-new-project005.iam.gserviceaccount.com \
+--target-service-accounts frontend-sa@pimballeke-new-project005.iam.gserviceaccount.com \
+--priority=104
+
+#: listing firewall-rules  
+gcloud compute firewall-rules list  
+NAME                                         NETWORK  DIRECTION  PRIORITY  ALLOW   DENY  DISABLED  
+allow-external-icmp-fwr                      wb01     INGRESS    100       icmp          False  
+allow-external-ssh-fwr                       wb01     INGRESS    101       tcp:22        False  
+allow-internal-backend-to-frontend-ssh-fwr   wb01     INGRESS    104       tcp:22        False  
+allow-internal-frontend-to-backend-icmp-fwr  wb01     INGRESS    102       icmp          False  
+allow-internal-frontend-to-backend-ssh-fwr   wb01     INGRESS    1000      tcp:22        False  
+
+#: setting firewall rules for backends  
+
+#: deny backends ping to frontends  
+gcloud compute firewall-rules create deny-internal-frontend-to-backend-icmp-fwr --network wb01 --action deny \
+--rules icmp --source-service-accounts backend-sa@pimballeke-new-project005.iam.gserviceaccount.com \
+--target-service-accounts frontend-sa@pimballeke-new-project005.iam.gserviceaccount.com \
+--priority 10
+
+#: deny web traffic  
+gcloud compute firewall-rules create deny-backend-external-traffic-fwr --network wb01 --direction egress --action deny \
+--rules tcp:80 --target-service-accounts backend-sa@pimballeke-new-project005.iam.gserviceaccount.com \
+--priority 11
+
+#: backends pinging backends  
+gcloud compute firewall-rules create allow-internal-backend-to-backend-icmp-fwr --network wb01 --allow icmp \
+--source-service-accounts backend-sa@pimballeke-new-project005.iam.gserviceaccount.com \
+--target-service-accounts backend-sa@pimballeke-new-project005.iam.gserviceaccount.com \
+--priority 12
+
+#: listing firewall-rules  
+gcloud compute firewall-rules list  
+NAME                                         NETWORK  DIRECTION  PRIORITY  ALLOW   DENY    DISABLED  
+allow-external-icmp-fwr                      wb01     INGRESS    100       icmp            False  
+allow-external-ssh-fwr                       wb01     INGRESS    101       tcp:22          False  
+allow-internal-backend-to-backend-icmp-fwr   wb01     INGRESS    12        icmp            False  
+allow-internal-backend-to-frontend-ssh-fwr   wb01     INGRESS    104       tcp:22          False  
+allow-internal-frontend-to-backend-icmp-fwr  wb01     INGRESS    102       icmp            False  
+allow-internal-frontend-to-backend-ssh-fwr   wb01     INGRESS    1000      tcp:22          False  
+deny-backend-external-traffic-fwr            wb01     EGRESS     11                tcp:80  False  
+deny-internal-frontend-to-backend-icmp-fwr   wb01     INGRESS    10                icmp    False
+
+#: exception firewall-rules - ssh to backends to test traffic to frontends 
+gcloud compute firewall-rules create allow-external-ssh-exception-backends-fwr --network wb01 --allow tcp:22 \
+--target-service-accounts backend-sa@pimballeke-new-project005.iam.gserviceaccount.com --source-ranges 0.0.0.0/0
+
+$ gcloud compute firewall-rules list  
+NAME                                         NETWORK  DIRECTION  PRIORITY  ALLOW   DENY    DISABLED  
+allow-external-icmp-fwr                      wb01     INGRESS    100       icmp            False  
+allow-external-ssh-exception-backends-fwr    wb01     INGRESS    1000      tcp:22          False  
+allow-external-ssh-fwr                       wb01     INGRESS    101       tcp:22          False  
+allow-internal-backend-to-backend-icmp-fwr   wb01     INGRESS    12        icmp            False  
+allow-internal-backend-to-frontend-ssh-fwr   wb01     INGRESS    104       tcp:22          False  
+allow-internal-frontend-to-backend-icmp-fwr  wb01     INGRESS    102       icmp            False  
+allow-internal-frontend-to-backend-ssh-fwr   wb01     INGRESS    1000      tcp:22          False  
+deny-backend-external-traffic-fwr            wb01     EGRESS     11                tcp:80  False  
+deny-internal-frontend-to-backend-icmp-fwr   wb01     INGRESS    10                icmp    False
+
+::From Cloud Shell or your computer:  
+
+#: can ping frontend instances  
+
+-- my computer  
+
+[root@bianchilabs(~)] $ ping -c 2 35.247.23.188  
+PING 35.247.23.188 (35.247.23.188): 56 data bytes  
+64 bytes from 35.247.23.188: icmp_seq=0 ttl=52 time=184.956 ms  
+64 bytes from 35.247.23.188: icmp_seq=1 ttl=52 time=184.569 ms  
+
+--- 35.247.23.188 ping statistics ---  
+2 packets transmitted, 2 packets received, 0.0% packet loss  
+round-trip min/avg/max/stddev = 184.569/184.762/184.956/0.193 ms  
+
+-- cloud shell  
+
+$ ping -c 2 35.247.23.188  
+PING 35.247.23.188 (35.247.23.188) 56(84) bytes of data.  
+64 bytes from 35.247.23.188: icmp_seq=1 ttl=55 time=68.2 ms  
+64 bytes from 35.247.23.188: icmp_seq=2 ttl=55 time=68.2 ms  
+
+--- 35.247.23.188 ping statistics ---  
+2 packets transmitted, 2 received, 0% packet loss, time 2ms  
+rtt min/avg/max/mdev = 68.169/68.202/68.236/0.263 ms  
+
+#: cannot ping backend instances  
+
+-- my computer  
+
+[root@bianchilabs(~)] $ ping -c 2 34.83.30.166  
+PING 34.83.30.166 (34.83.30.166): 56 data bytes  
+Request timeout for icmp_seq 0  
+
+--- 34.83.30.166 ping statistics ---  
+2 packets transmitted, 0 packets received, 100.0% packet loss  
+
+-- cloud shell  
+
+$ ping -c 2 34.83.30.166  
+PING 34.83.30.166 (34.83.30.166) 56(84) bytes of data.  
+
+--- 34.83.30.166 ping statistics ---  
+
+2 packets transmitted, 0 received, 100% packet loss, time 27ms  
+
+::When SSHed to a frontend instance:  
+
+#: can ping backend instances  
+
+pimballeke@frontend-ig-qqt3:~$ ping -c 9999 192.168.2.2  
+PING 192.168.2.2 (192.168.2.2) 56(84) bytes of data.  
+64 bytes from 192.168.2.2: icmp_seq=71 ttl=64 time=0.955 ms  
+64 bytes from 192.168.2.2: icmp_seq=72 ttl=64 time=0.302 ms  
+64 bytes from 192.168.2.2: icmp_seq=73 ttl=64 time=0.342 ms  
+64 bytes from 192.168.2.2: icmp_seq=74 ttl=64 time=0.227 ms  
+64 bytes from 192.168.2.2: icmp_seq=75 ttl=64 time=0.253 ms  
+64 bytes from 192.168.2.2: icmp_seq=76 ttl=64 time=0.289 ms  
+^C  
+--- 192.168.2.2 ping statistics ---  
+76 packets transmitted, 6 received, 92.1053% packet loss, time 822ms  
+rtt min/avg/max/mdev = 0.227/0.394/0.955/0.254 ms  
+
+#: can ping google.com  
+
+pimballeke@frontend-ig-qqt3:~$ curl http://www.google.com -I  
+HTTP/1.1 200 OK  
+Content-Type: text/html; charset=ISO-8859-1  
+P3P: CP="This is not a P3P policy! See g.co/p3phelp for more info."  
+Date: Wed, 26 Aug 2020 15:55:27 GMT  
+Server: gws  
+X-XSS-Protection: 0  
+X-Frame-Options: SAMEORIGIN  
+Transfer-Encoding: chunked  
+Expires: Wed, 26 Aug 2020 15:55:27 GMT  
+Cache-Control: private  
+Set-Cookie: 1P_JAR=2020-08-26-15; expires=Fri, 25-Sep-2020 15:55:27 GMT; path=/; domain=.google.com; Secure  
+Set-Cookie: NID=204=IlJMpwbdBIfO98rRmqSg5stNrf413FO75mbNXJh3Xrk9_8vTqjjP3F3aMw-Mvl6yRGOkn1eAGIAptew6i3s6_dX1IafpUZZ  
+5FR05ePumMiEeKnNnOG2JwySvc_qU8UfCRFcy6TzVZ0oFEEJWFYOqIVFCuQBSBY3r_ZAuHIKEtLs; expires=Thu, 25-Feb-2021 15:55:27 GMT  
+; path=/; domain=.google.com; HttpOnly  
+
+::When SSHed to a backend instance:  
+* Here I needed to open SSH somewhat to SSH into backends  
+
+#: cannot ping frontend instances  
+
+pimballeke@backend-ig-g8mw:~$ ping -c 2 192.168.0.2  
+PING 192.168.0.2 (192.168.0.2) 56(84) bytes of data.  
+
+--- 192.168.0.2 ping statistics ---  
+2 packets transmitted, 0 received, 100% packet loss, time 22ms  
+
+#: cannot ping google.com  
+
+pimballeke@backend-ig-g8mw:~$ curl http://www.google.com.br -I  
+curl: (7) Failed to connect to www.google.com.br port 80: Connection timed out  
+
+#:can ping other backend instances  
+pimballeke@backend-ig-g8mw:~$ ping -c 2 192.168.2.3  
+PING 192.168.2.3 (192.168.2.3) 56(84) bytes of data.  
+64 bytes from 192.168.2.3: icmp_seq=1 ttl=64 time=1.55 ms  
+64 bytes from 192.168.2.3: icmp_seq=2 ttl=64 time=0.326 ms  
+
+--- 192.168.2.3 ping statistics ---  
+2 packets transmitted, 2 received, 0% packet loss, time 3ms  
+rtt min/avg/max/mdev = 0.326/0.939/1.552/0.613 ms
+
+######################## CLEAN UP ########################
+
+#: VPC Challenge Lab Resolution - Clean Up    
+
+#: set the region    
+gcloud config set compute/region us-west1    
+Updated property [compute/region].  
+
+#: delete instance-groups (this command shouldn't ask you for --region at this point)  
+gcloud compute instance-groups managed delete -q backend-ig --region us-west1  
+gcloud compute instance-groups managed delete -q frontend-ig --region us-west1  
+
+#: delete instance-templates  
+gcloud compute instance-templates delete -q backend-it  
+gcloud compute instance-templates delete -q frontend-it  
+
+#: list and remove subnets    
+gcloud compute networks subnets list                                                                                 
+NAME           REGION    NETWORK  RANGE    
+wb01-subnet-a  us-west1  wb01     192.168.0.0/24    
+wb01-subnet-b  us-west1  wb01     192.168.1.0/24    
+wb01-subnet-c  us-west1  wb01     192.168.2.0/24    
+
+#: remove all subnets  
+for i in {a,b,c}; do gcloud compute networks subnets delete -q wb01-subnet-$i; done
+
+Deleted [https://www.googleapis.com/compute/v1/projects/pimballeke-new-project005/regions/us-west1/subnetworks/wb01-subnet-a].
+
+Deleted [https://www.googleapis.com/compute/v1/projects/pimballeke-new-project005/regions/us-west1/subnetworks/wb01-subnet-b].
+
+Deleted [https://www.googleapis.com/compute/v1/projects/pimballeke-new-project005/regions/us-west1/subnetworks/wb01-subnet-c].  
+
+#: listing firewall-rules  
+gcloud compute firewall-rules list  
+NAME                                         NETWORK  DIRECTION  PRIORITY  ALLOW   DENY    DISABLED  
+allow-external-icmp-fwr                      wb01     INGRESS    100       icmp            False  
+allow-external-ssh-exception-backends-fwr    wb01     INGRESS    1000      tcp:22          False  
+allow-external-ssh-fwr                       wb01     INGRESS    101       tcp:22          False  
+allow-internal-backend-to-backend-icmp-fwr   wb01     INGRESS    12        icmp            False  
+allow-internal-backend-to-frontend-ssh-fwr   wb01     INGRESS    104       tcp:22          False  
+allow-internal-frontend-to-backend-icmp-fwr  wb01     INGRESS    102       icmp            False  
+allow-internal-frontend-to-backend-ssh-fwr   wb01     INGRESS    1000      tcp:22          False  
+deny-backend-external-traffic-fwr            wb01     EGRESS     11                tcp:80  False  
+deny-internal-frontend-to-backend-icmp-fwr   wb01     INGRESS    10                icmp    False  
+
+#: removing all firewall-rules (only commands)  
+gcloud compute firewall-rules delete -q allow-external-icmp-fwr                        
+gcloud compute firewall-rules delete -q allow-external-ssh-exception-backends-fwr      
+gcloud compute firewall-rules delete -q allow-external-ssh-fwr                         
+gcloud compute firewall-rules delete -q allow-internal-backend-to-backend-icmp-fwr     
+gcloud compute firewall-rules delete -q allow-internal-backend-to-frontend-ssh-fwr     
+gcloud compute firewall-rules delete -q allow-internal-frontend-to-backend-icmp-fwr    
+gcloud compute firewall-rules delete -q allow-internal-frontend-to-backend-ssh-fwr     
+gcloud compute firewall-rules delete -q deny-backend-external-traffic-fwr              
+gcloud compute firewall-rules delete -q deny-internal-frontend-to-backend-icmp-fwr     
+
+#: remove the VPC    
+gcloud compute networks list    
+NAME  SUBNET_MODE  BGP_ROUTING_MODE  IPV4_RANGE  GATEWAY_IPV4    
+wb01  CUSTOM       REGIONAL    
+
+#: remove the VPC  
+gcloud compute networks delete -q wb01  
+
+#: remove bidings  
+gcloud iam service-accounts remove-iam-policy-binding frontend-sa@pimballeke-new-project005.iam.gserviceaccount.com \  
+--member="user:pimballeke@gmail.com" --role=BaseGCERole100  
+gcloud iam service-accounts remove-iam-policy-binding backend-sa@pimballeke-new-project005.iam.gserviceaccount.com \  
+--member="user:pimballeke@gmail.com" --role=BaseGCERole100  
+
+#: remove role  
+gcloud iam roles delete -q BaseGCERole100 --project pimballeke-new-project005  
+
+#: remove service accounts    
+gcloud iam service-accounts delete -q backend-sa@pimballeke-new-project005.iam.gserviceaccount.com    
+gcloud iam service-accounts delete -q frontend-sa@pimballeke-new-project005.iam.gserviceaccount.com
