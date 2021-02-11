@@ -6,7 +6,7 @@ I hope it helps you to learn more.
 
 **Qwiklabs - Hands-On Cloud Training**
 * [Cloud Monitoring](https://github.com/wagnerbianchijr/GCP-ACE/blob/master/QwickLabs/Qwicklabs%20-%20Cloud%20Monitoring)
-* [Connect to Cloud SQL from an Application in Kub](https://github.com/wagnerbianchijr/GCP-ACE/blob/master/QwickLabs/Qwicklabs%20-%20Connect%20to%20Cloud%20SQL%20from%20an%20Application%20in%20Kub)
+* [Connect to a Cloud SQL from an Application in Kubernetes](https://github.com/wagnerbianchijr/GCP-ACE/blob/master/QwickLabs/Qwicklabs%20-%20Connect%20to%20Cloud%20SQL%20from%20an%20Application%20in%20Kub)
 * [Deployment Manager - Full Production](https://github.com/wagnerbianchijr/GCP-ACE/blob/master/QwickLabs/Qwicklabs%20-%20Deployment%20Manager%20-%20Full%20Production)
 * [Google Cloud Essentials, Challenge Lab](https://github.com/wagnerbianchijr/GCP-ACE/blob/master/QwickLabs/Qwicklabs%20-%20Google%20Cloud%20Essentials%2C%20Challenge%20Lab)
 * [Managing Deployments Using Kubernetes Engine](https://github.com/wagnerbianchijr/GCP-ACE/blob/master/QwickLabs/Qwicklabs%20-%20Managing%20Deployments%20Using%20Kubernetes%20Engine)
