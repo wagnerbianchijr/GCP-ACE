@@ -17,7 +17,8 @@ I hope it helps you to learn more.
 
 **A Cloud Guru - Google Certified Associate Cloud Engineer 2020**
 * [GCS & GCE Lab](https://github.com/wagnerbianchijr/GCP-ACE/blob/master/ACloudGuru/ACloudGuru%20-%20GCS%20%26%20GCE%20Lab)
-* [VPC Challenge Lab Resolution](https://github.com/wagnerbianchijr/GCP-ACE/blob/master/ACloudGuru/VPC%20Challenge%20Lab%20Resolution)
+* [VPC Challenge Resolution Lab](https://github.com/wagnerbianchijr/GCP-ACE/blob/master/ACloudGuru/VPC%20Challenge%20Lab%20Resolution)
+* [VPC Challenge Resolution Lab + Call For Collaboration](https://acloud.guru/forums/gcp-certified-associate-cloud-engineer/discussion/-MFp9W0rEdUqba6PuDkO/challenge_lab_resolution_1.0_a)
 
 Profile with my achievements on Qwicklabs:
 https://www.qwiklabs.com/public_profiles/1bd3c4dd-4bbb-444b-9069-8375a1075f26
