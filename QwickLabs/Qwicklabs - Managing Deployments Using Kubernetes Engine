@@ -1,6 +1,8 @@
 #: Managing Deployments Using Kubernetes Engine
 
-Dev Ops practices will regularly make use of multiple deployments to manage application deployment scenarios such as "Continuous Deployment", "Blue-Green Deployments," "Canary Deployments" and more. This lab is to provide practice in scaling and managing containers so you can accomplish these common scenarios where multiple heterogeneous deployments are being used.
+Dev Ops practices will regularly make use of multiple deployments to manage application deployment scenarios such as 
+"Continuous Deployment", "Blue-Green Deployments," "Canary Deployments" and more. This lab is to provide practice in scaling 
+and managing containers so you can accomplish these common scenarios where multiple heterogeneous deployments are being used.
 
 Prior to take this lab you should take the below ones:
 
