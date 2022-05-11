@@ -1,8 +1,7 @@
 **Google Certified Associate Cloud Engineer**
 
 I've been dedicating some time to study all the things GCP related as it appears on my work days.
-ACloudGuru and Qwicklabs training/labs, all the exercises which challeged myself I added here and more yet to come.
-I hope it helps you to learn more.
+ACloudGuru and Qwicklabs training/labs, all the exercises which challenged myself I added here and more is yet to come. I hope it helps you somewhat.
 
 **Qwiklabs - Hands-On Cloud Training**
 * [Cloud Monitoring](https://github.com/wagnerbianchijr/GCP-ACE/blob/master/QwickLabs/Qwicklabs%20-%20Cloud%20Monitoring)
